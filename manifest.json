@@ -1,0 +1,27 @@
+{
+  "name": "مسیر — برنامه‌ریز رشد فردی",
+  "short_name": "مسیر",
+  "description": "برنامه‌ریز شخصی رشد فردی: تسک‌ها، عادت‌ها، ژورنال، مالی، یادگیری و روابط",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FAF6EC",
+  "theme_color": "#1C1B18",
+  "dir": "rtl",
+  "lang": "fa",
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

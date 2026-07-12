@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<title>مسیر — برنامه‌ریز رشد فردی</title>
+<meta name="description" content="برنامه‌ریز شخصی رشد فردی: تسک‌ها، عادت‌ها، ژورنال، مالی، یادگیری و روابط">
+<meta name="theme-color" content="#1C1B18">
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="مسیر">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --cream:#FAF6EC;
+  --card:#FFFFFF;
+  --dark:#1C1B18;
+  --dark2:#2A2822;
+  --gold:#B08D57;
+  --gold-light:#E7D9BE;
+  --gold-dim:#D8BD93;
+  --muted:#948E7E;
+  --line:#EAE3D2;
+  --danger:#B4544A;
+  --success:#5C8A6A;
+  --shadow: 0 2px 14px rgba(28,27,24,0.06);
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;}
+body{
+  font-family:'Vazirmatn', sans-serif;
+  background:var(--cream);
+  color:var(--dark);
+  min-height:100vh;
+  display:flex;
+  justify-content:center;
+}
+#app{
+  width:100%;
+  max-width:480px;
+  min-height:100vh;
+  background:var(--cream);
+  position:relative;
+  display:flex;
+  flex-direction:column;
+}
+/* ---------- HEADER ---------- */
+header.top{
+  background:var(--dark);
+  color:var(--gold-light);
+  padding:18px 20px 22px;
+  border-radius:0 0 22px 22px;
+  position:relative;
+  overflow:hidden;
+}
+header.top::after{
+  content:"";
+  position:absolute; inset:0;
+  background: radial-gradient(circle at 85% -20%, rgba(176,141,87,0.35), transparent 60%);
+  pointer-events:none;
+}
+header.top .row{display:flex; justify-content:space-between; align-items:center; position:relative; z-index:1;}
+header.top h1{margin:0; font-size:20px; font-weight:800; letter-spacing:.5px;}
+header.top .sub{font-size:12px; color:var(--gold-dim); margin-top:3px;}
+header.top .date-pill{
+  font-size:11px; background:rgba(255,255,255,.08); color:var(--gold-light);
+  padding:5px 10px; border-radius:999px; border:1px solid rgba(231,217,190,.25);
+}
+/* ---------- MAIN ---------- */
+main{
+  flex:1;
+  padding:16px 16px 90px;
+  overflow-y:auto;
+}
+h2.page-title{font-size:17px; font-weight:800; margin:4px 2px 14px;}
+.card{
+  background:var(--card);
+  border-radius:16px;
+  padding:16px;
+  box-shadow:var(--shadow);
+  border:1px solid var(--line);
+  margin-bottom:14px;
+}
+.section-label{font-size:12px; font-weight:700; color:var(--muted); margin:18px 4px 8px; display:flex; align-items:center; gap:6px;}
+.section-label .bar{width:14px; height:2px; background:var(--gold); display:inline-block; border-radius:2px;}
+
+/* progress ring */
+.ring-wrap{display:flex; align-items:center; gap:16px;}
+.ring-num{font-size:22px; font-weight:800; color:var(--dark);}
+.ring-label{font-size:12px; color:var(--muted); margin-top:2px;}
+
+.stat-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:4px;}
+.stat-box{background:var(--cream); border:1px solid var(--line); border-radius:12px; padding:10px 12px;}
+.stat-box .n{font-size:18px; font-weight:800; color:var(--dark);}
+.stat-box .l{font-size:11px; color:var(--muted); margin-top:2px;}
+
+.mini-area-list{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;}
+.area-chip{
+  font-size:11.5px; padding:6px 10px; border-radius:999px; background:var(--gold-light); color:#5c4a2a; font-weight:600;
+}
+
+/* bars for weekly habit chart */
+.week-chart{display:flex; align-items:flex-end; gap:6px; height:70px; margin-top:10px;}
+.week-chart .col{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%;}
+.week-chart .bar{width:100%; background:var(--gold-dim); border-radius:6px 6px 3px 3px; transition:height .3s;}
+.week-chart .bar.today{background:var(--gold);}
+.week-chart .day-label{font-size:9.5px; color:var(--muted); margin-top:5px;}
+
+/* list items */
+.item{
+  display:flex; align-items:center; gap:10px;
+  padding:11px 4px; border-bottom:1px solid var(--line);
+}
+.item:last-child{border-bottom:none;}
+.item .check{
+  width:22px; height:22px; border-radius:7px; border:2px solid var(--gold-dim);
+  flex-shrink:0; display:flex; align-items:center; justify-content:center; cursor:pointer;
+  transition:.15s;
+}
+.item .check.done{background:var(--gold); border-color:var(--gold);}
+.item .check.done::after{content:"✓"; color:#fff; font-size:13px; font-weight:800;}
+.item .main{flex:1; min-width:0;}
+.item .title{font-size:13.5px; font-weight:600; color:var(--dark);}
+.item .title.strike{text-decoration:line-through; color:var(--muted);}
+.item .meta{font-size:11px; color:var(--muted); margin-top:2px; display:flex; gap:6px; flex-wrap:wrap;}
+.tag{padding:2px 7px; border-radius:6px; font-size:10px; font-weight:700;}
+.tag.high{background:#F6DFDB; color:var(--danger);}
+.tag.medium{background:#F3E7D2; color:#8a6a2b;}
+.tag.low{background:#E1EEE3; color:var(--success);}
+.tag.status{background:var(--gold-light); color:#5c4a2a;}
+.item .edit-btn{color:var(--muted); font-size:16px; padding:4px; cursor:pointer;}
+
+.empty{
+  text-align:center; padding:26px 10px; color:var(--muted); font-size:12.5px;
+}
+
+/* buttons */
+.fab{
+  position:fixed; bottom:86px; left:50%; transform:translateX(200px);
+  width:52px; height:52px; border-radius:50%; background:var(--gold); color:#fff;
+  font-size:26px; display:flex; align-items:center; justify-content:center;
+  box-shadow:0 6px 18px rgba(176,141,87,.45); border:none; cursor:pointer; z-index:40;
+}
+.btn{
+  background:var(--dark); color:var(--gold-light); border:none; padding:10px 16px;
+  border-radius:11px; font-family:inherit; font-size:13px; font-weight:700; cursor:pointer;
+}
+.btn.secondary{background:var(--cream); color:var(--dark); border:1px solid var(--line);}
+.btn.full{width:100%;}
+.btn.danger{background:var(--danger); color:#fff;}
+
+/* more menu grid */
+.more-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+.more-tile{
+  background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px 12px;
+  display:flex; flex-direction:column; gap:8px; cursor:pointer; box-shadow:var(--shadow);
+}
+.more-tile .ic{font-size:20px;}
+.more-tile .t{font-size:13px; font-weight:700;}
+.more-tile .d{font-size:10.5px; color:var(--muted);}
+
+.back-row{display:flex; align-items:center; gap:8px; margin-bottom:12px; cursor:pointer; color:var(--muted); font-size:13px; font-weight:600;}
+
+/* nav */
+nav.bottom{
+  position:fixed; bottom:0; left:50%; transform:translateX(-50%);
+  width:100%; max-width:480px; background:var(--dark); border-radius:20px 20px 0 0;
+  display:flex; justify-content:space-around; padding:10px 6px 14px; z-index:50;
+  box-shadow:0 -6px 20px rgba(0,0,0,.15);
+}
+nav.bottom .nb{
+  display:flex; flex-direction:column; align-items:center; gap:3px; color:#8d8977;
+  font-size:10px; cursor:pointer; padding:4px 8px; border-radius:10px; transition:.15s;
+}
+nav.bottom .nb.active{color:var(--gold-light);}
+nav.bottom .nb .ic{font-size:19px;}
+
+/* modal */
+.overlay{
+  position:fixed; inset:0; background:rgba(28,27,24,.5); z-index:100;
+  display:flex; align-items:flex-end; justify-content:center;
+}
+.overlay.hidden{display:none;}
+.modal{
+  background:var(--cream); width:100%; max-width:480px; border-radius:20px 20px 0 0;
+  padding:20px 18px 26px; max-height:85vh; overflow-y:auto;
+}
+.modal h3{margin:0 0 14px; font-size:16px; font-weight:800;}
+.field{margin-bottom:12px;}
+.field label{display:block; font-size:12px; font-weight:700; color:var(--muted); margin-bottom:5px;}
+.field input, .field select, .field textarea{
+  width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--line);
+  font-family:inherit; font-size:13.5px; background:#fff; color:var(--dark);
+}
+.field textarea{resize:vertical; min-height:60px;}
+.modal-actions{display:flex; gap:10px; margin-top:16px;}
+
+::-webkit-scrollbar{width:0;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header class="top">
+    <div class="row">
+      <div>
+        <h1 id="header-title">مسیر</h1>
+        <div class="sub" id="header-sub">برنامه‌ریز رشد فردی</div>
+      </div>
+      <div class="date-pill" id="header-date"></div>
+    </div>
+  </header>
+
+  <main id="main"></main>
+
+  <button class="fab" id="fab" style="display:none;">+</button>
+
+  <nav class="bottom">
+    <div class="nb" data-view="home"><span class="ic">🏠</span>خانه</div>
+    <div class="nb" data-view="tasks"><span class="ic">✅</span>تسک‌ها</div>
+    <div class="nb" data-view="habits"><span class="ic">🔁</span>عادت‌ها</div>
+    <div class="nb" data-view="journal"><span class="ic">📔</span>ژورنال</div>
+    <div class="nb" data-view="more"><span class="ic">☰</span>بیشتر</div>
+  </nav>
+</div>
+
+<div class="overlay hidden" id="overlay">
+  <div class="modal" id="modal"></div>
+</div>
+
+<script>
+/* =========================================================
+   DATA MODEL + SEED (from user's exported Notion CSVs)
+========================================================= */
+const todayStr = () => new Date().toISOString().slice(0,10);
+const uid = () => Math.random().toString(36).slice(2,10);
+
+const SEED = {
+  lifeAreas: [
+    {id:uid(), name:"کار", focus:"تمرکز فعلی روی پروژه‌های اصلی شغلی"},
+    {id:uid(), name:"سلامتی", focus:"بهبود خواب و ورزش منظم"},
+    {id:uid(), name:"مالی", focus:"پس‌انداز و کنترل هزینه‌ها"},
+    {id:uid(), name:"روابط", focus:"زمان بیشتر با خانواده و دوستان"},
+    {id:uid(), name:"یادگیری", focus:"یادگیری مهارت جدید"},
+    {id:uid(), name:"معنویت", focus:"مدیتیشن و آرامش ذهنی"},
+    {id:uid(), name:"خلاقیت", focus:"پروژه‌های شخصی خلاقانه"},
+  ],
+  goals: [
+    {id:uid(), name:"یادگیری زبان انگلیسی", area:"یادگیری", status:"در حال انجام", timeframe:"امسال", targetDate:"2026-12-31"},
+    {id:uid(), name:"پس‌انداز ماهانه", area:"مالی", status:"برنامه‌ریزی‌شده", timeframe:"این ماه", targetDate:"2026-08-01"},
+  ],
+  tasks: [
+    {id:uid(), name:"تهیه گزارش ماهانه", type:"Task", status:"Not Started", priority:"High", dueDate:"2026-07-20", area:"کار", goal:""},
+    {id:uid(), name:"پروژه یادگیری زبان", type:"Project", status:"In Progress", priority:"Medium", dueDate:"2026-09-01", area:"یادگیری", goal:"یادگیری زبان انگلیسی"},
+  ],
+  habits: [
+    {id:uid(), name:"مدیتیشن روزانه", frequency:"روزانه", area:"معنویت"},
+    {id:uid(), name:"ورزش", frequency:"روزانه", area:"سلامتی"},
+    {id:uid(), name:"مطالعه", frequency:"روزانه", area:"یادگیری"},
+    {id:uid(), name:"نوشتن ژورنال", frequency:"روزانه", area:"معنویت"},
+  ],
+  habitLog: {}, // { "habitId|date": true/false }
+  journal: [
+    {id:uid(), date:"2026-07-12", mood:"خوب", gratitude:"سلامتی، خانواده، یک روز آفتابی", prompt:"امروز چه چیزی یاد گرفتم؟", highlights:"تکمیل یک تسک مهم"},
+  ],
+  books: [
+    {id:uid(), name:"عادت‌های اتمی", author:"جیمز کلییر", status:"در حال خواندن", rating:5, takeaways:"شروع کوچک، تکرار مداوم", area:"یادگیری"},
+  ],
+  courses: [
+    {id:uid(), name:"دوره زبان انگلیسی", platform:"Udemy", status:"در حال انجام", progress:40, notes:"هفته‌ای ۳ جلسه"},
+  ],
+  skills: [
+    {id:uid(), name:"نوشتن خلاقانه", level:"متوسط", log:"هفته‌ای ۲ بار تمرین"},
+  ],
+  budget: [
+    {id:uid(), category:"خوراک", monthly:3000000, spent:150000},
+    {id:uid(), category:"حمل‌ونقل", monthly:1000000, spent:0},
+    {id:uid(), category:"تفریح", monthly:800000, spent:0},
+  ],
+  transactions: [
+    {id:uid(), date:"2026-07-12", amount:150000, type:"Expense", category:"خوراک", note:"خرید هفتگی"},
+    {id:uid(), date:"2026-07-01", amount:20000000, type:"Income", category:"", note:"حقوق ماهانه"},
+  ],
+  financialGoals: [
+    {id:uid(), name:"خرید لپ‌تاپ جدید", target:40000000, current:10000000, deadline:"2026-12-31"},
+  ],
+  relationships: [
+    {id:uid(), name:"مادر", relation:"خانواده", lastContact:"2026-07-10", notes:"تماس هفتگی"},
+    {id:uid(), name:"یک دوست قدیمی", relation:"دوست", lastContact:"2026-06-01", notes:"برای قهوه ملاقات کنیم"},
+  ],
+  creative: [
+    {id:uid(), name:"نوشتن داستان کوتاه", type:"نویسندگی", status:"In Progress", deadline:"2026-08-15", inspiration:"", notes:"الهام از سفر اخیر"},
+  ],
+  reviews: [
+    {id:uid(), title:"مرور هفته ۲۸", type:"Weekly", date:"2026-07-12", wentWell:"", challenges:"", nextFocus:""},
+    {id:uid(), title:"مرور تیر ماه", type:"Monthly", date:"2026-07-31", wentWell:"", challenges:"", nextFocus:""},
+    {id:uid(), title:"مرور سال ۱۴۰۵", type:"Yearly", date:"2027-01-01", wentWell:"", challenges:"", nextFocus:""},
+  ],
+};
+
+let DB = null;
+const STORAGE_KEY = "masir-app-data";
+
+async function loadDB(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){ DB = JSON.parse(raw); return; }
+  }catch(e){ /* not found or blocked */ }
+  DB = JSON.parse(JSON.stringify(SEED));
+  await saveDB();
+}
+async function saveDB(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(DB)); }
+  catch(e){ console.error("storage save failed", e); }
+}
+
+/* =========================================================
+   ENTITY FIELD CONFIGS (for generic add/edit modal)
+========================================================= */
+const AREA_NAMES = () => DB.lifeAreas.map(a=>a.name);
+
+const CONFIGS = {
+  tasks: {
+    title:"تسک / پروژه",
+    fields:[
+      {k:"name", label:"عنوان", type:"text"},
+      {k:"type", label:"نوع", type:"select", opts:["Task","Project"]},
+      {k:"status", label:"وضعیت", type:"select", opts:["Not Started","In Progress","Done"]},
+      {k:"priority", label:"اولویت", type:"select", opts:["High","Medium","Low"]},
+      {k:"dueDate", label:"ددلاین", type:"date"},
+      {k:"area", label:"حوزه زندگی", type:"select", opts:AREA_NAMES},
+      {k:"goal", label:"هدف مرتبط", type:"text"},
+    ]
+  },
+  habits: {
+    title:"عادت",
+    fields:[
+      {k:"name", label:"نام عادت", type:"text"},
+      {k:"frequency", label:"تکرار", type:"select", opts:["روزانه","هفتگی"]},
+      {k:"area", label:"حوزه زندگی", type:"select", opts:AREA_NAMES},
+    ]
+  },
+  journal: {
+    title:"ژورنال روزانه",
+    fields:[
+      {k:"date", label:"تاریخ", type:"date"},
+      {k:"mood", label:"خلق‌وخو", type:"select", opts:["عالی","خوب","معمولی","بد","خیلی بد"]},
+      {k:"gratitude", label:"قدردانی", type:"textarea"},
+      {k:"prompt", label:"پرامپت روز", type:"text"},
+      {k:"highlights", label:"نکات برجسته روز", type:"textarea"},
+    ]
+  },
+  goals: {
+    title:"هدف",
+    fields:[
+      {k:"name", label:"عنوان هدف", type:"text"},
+      {k:"area", label:"حوزه زندگی", type:"select", opts:AREA_NAMES},
+      {k:"status", label:"وضعیت", type:"select", opts:["برنامه‌ریزی‌شده","در حال انجام","تکمیل‌شده"]},
+      {k:"timeframe", label:"افق زمانی", type:"text"},
+      {k:"targetDate", label:"تاریخ هدف", type:"date"},
+    ]
+  },
+  lifeAreas: {
+    title:"حوزه زندگی",
+    fields:[
+      {k:"name", label:"نام حوزه", type:"text"},
+      {k:"focus", label:"تمرکز فعلی", type:"textarea"},
+    ]
+  },
+  books: {
+    title:"کتاب",
+    fields:[
+      {k:"name", label:"عنوان کتاب", type:"text"},
+      {k:"author", label:"نویسنده", type:"text"},
+      {k:"status", label:"وضعیت", type:"select", opts:["می‌خوانم بعدا","در حال خواندن","خوانده‌شده"]},
+      {k:"rating", label:"امتیاز (۱ تا ۵)", type:"number"},
+      {k:"takeaways", label:"نکات کلیدی", type:"textarea"},
+      {k:"area", label:"حوزه زندگی", type:"select", opts:AREA_NAMES},
+    ]
+  },
+  courses: {
+    title:"دوره آموزشی",
+    fields:[
+      {k:"name", label:"عنوان دوره", type:"text"},
+      {k:"platform", label:"پلتفرم", type:"text"},
+      {k:"status", label:"وضعیت", type:"select", opts:["شروع‌نشده","در حال انجام","تکمیل‌شده"]},
+      {k:"progress", label:"پیشرفت (%)", type:"number"},
+      {k:"notes", label:"یادداشت", type:"textarea"},
+    ]
+  },
+  skills: {
+    title:"مهارت",
+    fields:[
+      {k:"name", label:"نام مهارت", type:"text"},
+      {k:"level", label:"سطح", type:"select", opts:["مبتدی","متوسط","پیشرفته"]},
+      {k:"log", label:"لاگ تمرین", type:"textarea"},
+    ]
+  },
+  budget: {
+    title:"دسته بودجه",
+    fields:[
+      {k:"category", label:"دسته", type:"text"},
+      {k:"monthly", label:"بودجه ماهانه (تومان)", type:"number"},
+      {k:"spent", label:"هزینه‌شده (تومان)", type:"number"},
+    ]
+  },
+  transactions: {
+    title:"تراکنش",
+    fields:[
+      {k:"date", label:"تاریخ", type:"date"},
+      {k:"amount", label:"مبلغ (تومان)", type:"number"},
+      {k:"type", label:"نوع", type:"select", opts:["Expense","Income"]},
+      {k:"category", label:"دسته", type:"text"},
+      {k:"note", label:"توضیح", type:"text"},
+    ]
+  },
+  financialGoals: {
+    title:"هدف مالی",
+    fields:[
+      {k:"name", label:"نام هدف", type:"text"},
+      {k:"target", label:"مبلغ هدف (تومان)", type:"number"},
+      {k:"current", label:"مبلغ فعلی (تومان)", type:"number"},
+      {k:"deadline", label:"ددلاین", type:"date"},
+    ]
+  },
+  relationships: {
+    title:"رابطه",
+    fields:[
+      {k:"name", label:"نام", type:"text"},
+      {k:"relation", label:"نوع رابطه", type:"text"},
+      {k:"lastContact", label:"آخرین تماس", type:"date"},
+      {k:"notes", label:"یادداشت", type:"textarea"},
+    ]
+  },
+  creative: {
+    title:"پروژه خلاقانه",
+    fields:[
+      {k:"name", label:"عنوان", type:"text"},
+      {k:"type", label:"نوع", type:"text"},
+      {k:"status", label:"وضعیت", type:"select", opts:["Not Started","In Progress","Done"]},
+      {k:"deadline", label:"ددلاین", type:"date"},
+      {k:"inspiration", label:"منبع الهام", type:"text"},
+      {k:"notes", label:"یادداشت", type:"textarea"},
+    ]
+  },
+  reviews: {
+    title:"مرور",
+    fields:[
+      {k:"title", label:"عنوان مرور", type:"text"},
+      {k:"type", label:"نوع", type:"select", opts:["Weekly","Monthly","Yearly"]},
+      {k:"date", label:"تاریخ", type:"date"},
+      {k:"wentWell", label:"چه چیزی خوب پیش رفت؟", type:"textarea"},
+      {k:"challenges", label:"چالش‌ها", type:"textarea"},
+      {k:"nextFocus", label:"تمرکز بعدی", type:"textarea"},
+    ]
+  },
+};
+
+/* =========================================================
+   ROUTER STATE
+========================================================= */
+let state = { view:"home", moreSub:null };
+
+const $ = sel => document.querySelector(sel);
+const mainEl = () => document.getElementById("main");
+const fab = () => document.getElementById("fab");
+
+function setHeader(title, sub){
+  $("#header-title").textContent = title;
+  $("#header-sub").textContent = sub;
+}
+function fmtDate(d){
+  if(!d) return "";
+  try{
+    return new Date(d).toLocaleDateString("fa-IR", {month:"short", day:"numeric"});
+  }catch(e){ return d; }
+}
+function fmtMoney(n){
+  n = Number(n)||0;
+  return n.toLocaleString("fa-IR");
+}
+
+/* =========================================================
+   NAVIGATION
+========================================================= */
+document.querySelectorAll("nav.bottom .nb").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    state.view = btn.dataset.view;
+    state.moreSub = null;
+    render();
+  });
+});
+
+/* =========================================================
+   RENDER: HOME
+========================================================= */
+function renderHome(){
+  setHeader("مسیر", "برنامه‌ریز رشد فردی");
+  fab().style.display = "none";
+
+  const today = todayStr();
+  const todaysTasks = DB.tasks.filter(t => t.status !== "Done" && (t.dueDate === today || (t.dueDate && t.dueDate < today)));
+  const dailyHabits = DB.habits.filter(h => h.frequency === "روزانه");
+  const doneHabitsToday = dailyHabits.filter(h => DB.habitLog[h.id+"|"+today]);
+  const doneTasksToday = DB.tasks.filter(t=>t.status==="Done" && t.dueDate===today).length;
+
+  const totalUnits = todaysTasks.length + dailyHabits.length;
+  const doneUnits = doneTasksToday + doneHabitsToday.length;
+  const pct = totalUnits ? Math.round((doneUnits/Math.max(totalUnits,1))*100) : (dailyHabits.length ? Math.round((doneHabitsToday.length/dailyHabits.length)*100) : 0);
+
+  const r = 42, circ = 2*Math.PI*r;
+  const dash = circ * (Math.min(pct,100)/100);
+
+  // weekly habit chart (last 7 days completion rate over daily habits)
+  let weekBars = "";
+  const dayLabels = ["ش","ی","د","س","چ","پ","ج"];
+  for(let i=6;i>=0;i--){
+    const d = new Date(); d.setDate(d.getDate()-i);
+    const ds = d.toISOString().slice(0,10);
+    const doneCount = dailyHabits.filter(h=>DB.habitLog[h.id+"|"+ds]).length;
+    const rate = dailyHabits.length ? doneCount/dailyHabits.length : 0;
+    const h = Math.max(6, Math.round(rate*100)*0.6);
+    const isToday = ds===today;
+    weekBars += `<div class="col">
+      <div class="bar ${isToday?'today':''}" style="height:${h}px;"></div>
+      <div class="day-label">${dayLabels[d.getDay()]}</div>
+    </div>`;
+  }
+
+  const areaChips = DB.lifeAreas.map(a=>`<span class="area-chip">${a.name}</span>`).join("");
+
+  const upcoming = DB.tasks.filter(t=>t.status!=="Done").sort((a,b)=>(a.dueDate||"9999").localeCompare(b.dueDate||"9999")).slice(0,4);
+  const upcomingHtml = upcoming.length ? upcoming.map(t=>`
+    <div class="item">
+      <div class="check ${t.status==='Done'?'done':''}" onclick="toggleTaskDone('${t.id}')"></div>
+      <div class="main">
+        <div class="title">${esc(t.name)}</div>
+        <div class="meta"><span class="tag ${t.priority.toLowerCase()}">${prLabel(t.priority)}</span><span>${fmtDate(t.dueDate)}</span><span>${esc(t.area||"")}</span></div>
+      </div>
+    </div>`).join("") : `<div class="empty">هیچ تسک بازی نداری 🌿</div>`;
+
+  mainEl().innerHTML = `
+    <div class="card">
+      <div class="ring-wrap">
+        <svg width="96" height="96" viewBox="0 0 96 96">
+          <circle cx="48" cy="48" r="${r}" fill="none" stroke="#EFE7D5" stroke-width="9"/>
+          <circle cx="48" cy="48" r="${r}" fill="none" stroke="#B08D57" stroke-width="9"
+            stroke-linecap="round" stroke-dasharray="${dash} ${circ}"
+            transform="rotate(-90 48 48)"/>
+          <text x="48" y="54" text-anchor="middle" font-size="20" font-weight="800" fill="#1C1B18">${pct}%</text>
+        </svg>
+        <div>
+          <div class="ring-num">${doneUnits} از ${totalUnits||dailyHabits.length}</div>
+          <div class="ring-label">پیشرفت امروز (تسک + عادت)</div>
+        </div>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-box"><div class="n">${DB.tasks.filter(t=>t.status!=='Done').length}</div><div class="l">تسک باز</div></div>
+        <div class="stat-box"><div class="n">${DB.habits.length}</div><div class="l">عادت فعال</div></div>
+        <div class="stat-box"><div class="n">${DB.goals.filter(g=>g.status!=='تکمیل‌شده').length}</div><div class="l">هدف در حال انجام</div></div>
+        <div class="stat-box"><div class="n">${DB.journal.length}</div><div class="l">یادداشت ژورنال</div></div>
+      </div>
+    </div>
+
+    <div class="section-label"><span class="bar"></span>روند عادت‌های هفته</div>
+    <div class="card"><div class="week-chart">${weekBars}</div></div>
+
+    <div class="section-label"><span class="bar"></span>حوزه‌های زندگی</div>
+    <div class="card"><div class="mini-area-list">${areaChips}</div></div>
+
+    <div class="section-label"><span class="bar"></span>تسک‌های پیش رو</div>
+    <div class="card">${upcomingHtml}</div>
+  `;
+}
+
+function prLabel(p){ return p==="High"?"بالا":p==="Medium"?"متوسط":"پایین"; }
+function esc(s){ return (s??"").toString().replace(/</g,"&lt;"); }
+
+async function toggleTaskDone(id){
+  const t = DB.tasks.find(x=>x.id===id);
+  if(!t) return;
+  t.status = t.status==="Done" ? "Not Started" : "Done";
+  await saveDB();
+  render();
+}
+
+/* =========================================================
+   RENDER: TASKS
+========================================================= */
+function renderTasks(){
+  setHeader("تسک‌ها و پروژه‌ها", `${DB.tasks.filter(t=>t.status!=='Done').length} مورد باز`);
+  fab().style.display = "flex";
+  fab().onclick = ()=>openForm("tasks", null);
+
+  const groups = {"Not Started":[], "In Progress":[], "Done":[]};
+  DB.tasks.forEach(t=> (groups[t.status]||(groups[t.status]=[])).push(t));
+  const labelMap = {"Not Started":"شروع نشده", "In Progress":"در حال انجام", "Done":"انجام‌شده"};
+
+  let html = "";
+  ["Not Started","In Progress","Done"].forEach(st=>{
+    const items = groups[st]||[];
+    html += `<div class="section-label"><span class="bar"></span>${labelMap[st]} (${items.length})</div><div class="card">`;
+    html += items.length ? items.map(t=>`
+      <div class="item">
+        <div class="check ${t.status==='Done'?'done':''}" onclick="toggleTaskDone('${t.id}')"></div>
+        <div class="main" onclick="openForm('tasks','${t.id}')">
+          <div class="title ${t.status==='Done'?'strike':''}">${esc(t.name)}</div>
+          <div class="meta">
+            <span class="tag status">${t.type==='Project'?'پروژه':'تسک'}</span>
+            <span class="tag ${t.priority.toLowerCase()}">${prLabel(t.priority)}</span>
+            ${t.dueDate?`<span>${fmtDate(t.dueDate)}</span>`:""}
+            ${t.area?`<span>${esc(t.area)}</span>`:""}
+          </div>
+        </div>
+        <div class="edit-btn" onclick="openForm('tasks','${t.id}')">✎</div>
+      </div>`).join("") : `<div class="empty">موردی نیست</div>`;
+    html += `</div>`;
+  });
+  mainEl().innerHTML = html;
+}
+
+/* =========================================================
+   RENDER: HABITS
+========================================================= */
+function renderHabits(){
+  setHeader("عادت‌ها", `${DB.habits.length} عادت فعال`);
+  fab().style.display = "flex";
+  fab().onclick = ()=>openForm("habits", null);
+
+  const today = todayStr();
+  const html = DB.habits.map(h=>{
+    const done = !!DB.habitLog[h.id+"|"+today];
+    return `<div class="item">
+      <div class="check ${done?'done':''}" onclick="toggleHabit('${h.id}')"></div>
+      <div class="main" onclick="openForm('habits','${h.id}')">
+        <div class="title ${done?'strike':''}">${esc(h.name)}</div>
+        <div class="meta"><span class="tag status">${esc(h.frequency)}</span><span>${esc(h.area||"")}</span></div>
+      </div>
+      <div class="edit-btn" onclick="openForm('habits','${h.id}')">✎</div>
+    </div>`;
+  }).join("") || `<div class="empty">هنوز عادتی اضافه نکردی</div>`;
+
+  mainEl().innerHTML = `<div class="section-label"><span class="bar"></span>وضعیت امروز</div><div class="card">${html}</div>`;
+}
+
+async function toggleHabit(id){
+  const key = id+"|"+todayStr();
+  DB.habitLog[key] = !DB.habitLog[key];
+  await saveDB();
+  render();
+}
+
+/* =========================================================
+   RENDER: JOURNAL
+========================================================= */
+function renderJournal(){
+  setHeader("ژورنال روزانه", `${DB.journal.length} یادداشت`);
+  fab().style.display = "flex";
+  fab().onclick = ()=>openForm("journal", null);
+
+  const sorted = [...DB.journal].sort((a,b)=>b.date.localeCompare(a.date));
+  const html = sorted.map(j=>`
+    <div class="card" onclick="openForm('journal','${j.id}')" style="cursor:pointer;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div style="font-weight:800; font-size:13.5px;">${fmtDate(j.date)}</div>
+        <span class="tag status">${esc(j.mood||"")}</span>
+      </div>
+      ${j.prompt?`<div style="font-size:11.5px; color:var(--muted); margin-top:8px;">${esc(j.prompt)}</div>`:""}
+      ${j.highlights?`<div style="font-size:12.5px; margin-top:4px;">${esc(j.highlights)}</div>`:""}
+      ${j.gratitude?`<div style="font-size:11.5px; color:var(--muted); margin-top:6px;">🙏 ${esc(j.gratitude)}</div>`:""}
+    </div>
+  `).join("") || `<div class="empty">هنوز ژورنالی ننوشتی</div>`;
+
+  mainEl().innerHTML = html;
+}
+
+/* =========================================================
+   RENDER: MORE (menu + subpages)
+========================================================= */
+const MORE_TILES = [
+  {key:"goals", ic:"🎯", t:"اهداف", d:"لیست اهداف کلی"},
+  {key:"lifeAreas", ic:"🧭", t:"حوزه‌های زندگی", d:"تمرکز هر حوزه"},
+  {key:"finance", ic:"💰", t:"مالی", d:"بودجه، تراکنش، اهداف مالی"},
+  {key:"learning", ic:"📚", t:"یادگیری", d:"کتاب، دوره، مهارت"},
+  {key:"relationships", ic:"❤️", t:"روابط", d:"افراد مهم زندگی‌ت"},
+  {key:"creative", ic:"🎨", t:"پروژه‌های خلاقانه", d:"ایده و پروژه‌های شخصی"},
+  {key:"reviews", ic:"🔄", t:"مرورها", d:"مرور هفتگی/ماهانه/سالانه"},
+];
+
+function renderMore(){
+  if(!state.moreSub){
+    setHeader("بیشتر", "بخش‌های دیگر سیستم");
+    fab().style.display = "none";
+    mainEl().innerHTML = `<div class="more-grid">${MORE_TILES.map(m=>`
+      <div class="more-tile" onclick="openMoreSub('${m.key}')">
+        <div class="ic">${m.ic}</div>
+        <div class="t">${m.t}</div>
+        <div class="d">${m.d}</div>
+      </div>`).join("")}</div>`;
+    return;
+  }
+  const backHtml = `<div class="back-row" onclick="state.moreSub=null; render();">→ بازگشت به بیشتر</div>`;
+
+  if(state.moreSub === "goals") return renderSimpleList("goals","اهداف",backHtml, g=>({
+    title:g.name, meta:[g.area, g.status, g.timeframe, fmtDate(g.targetDate)].filter(Boolean)
+  }));
+  if(state.moreSub === "lifeAreas") return renderSimpleList("lifeAreas","حوزه‌های زندگی",backHtml, a=>({
+    title:a.name, meta:[a.focus].filter(Boolean)
+  }));
+  if(state.moreSub === "learning") return renderLearning(backHtml);
+  if(state.moreSub === "finance") return renderFinance(backHtml);
+  if(state.moreSub === "relationships") return renderSimpleList("relationships","روابط",backHtml, r=>({
+    title:r.name, meta:[r.relation, "آخرین تماس: "+fmtDate(r.lastContact), r.notes].filter(Boolean)
+  }));
+  if(state.moreSub === "creative") return renderSimpleList("creative","پروژه‌های خلاقانه",backHtml, c=>({
+    title:c.name, meta:[c.type, c.status, fmtDate(c.deadline)].filter(Boolean)
+  }));
+  if(state.moreSub === "reviews") return renderSimpleList("reviews","مرورها",backHtml, r=>({
+    title:r.title, meta:[r.type, fmtDate(r.date)].filter(Boolean)
+  }));
+}
+function openMoreSub(key){ state.moreSub = key; render(); }
+
+function renderSimpleList(entityKey, title, backHtml, mapper){
+  setHeader(title, `${DB[entityKey].length} مورد`);
+  fab().style.display = "flex";
+  fab().onclick = ()=>openForm(entityKey, null);
+
+  const items = DB[entityKey];
+  const html = items.map(it=>{
+    const m = mapper(it);
+    return `<div class="item">
+      <div class="main" onclick="openForm('${entityKey}','${it.id}')">
+        <div class="title">${esc(m.title)}</div>
+        <div class="meta">${m.meta.map(x=>`<span>${esc(x)}</span>`).join("")}</div>
+      </div>
+      <div class="edit-btn" onclick="openForm('${entityKey}','${it.id}')">✎</div>
+    </div>`;
+  }).join("") || `<div class="empty">موردی ثبت نشده</div>`;
+
+  mainEl().innerHTML = backHtml + `<div class="card">${html}</div>`;
+}
+
+function renderLearning(backHtml){
+  setHeader("یادگیری", "کتاب · دوره · مهارت");
+  fab().style.display = "flex";
+  fab().onclick = ()=>openForm("books", null);
+
+  const books = DB.books.map(b=>`
+    <div class="item">
+      <div class="main" onclick="openForm('books','${b.id}')">
+        <div class="title">${esc(b.name)}</div>
+        <div class="meta"><span>${esc(b.author||"")}</span><span class="tag status">${esc(b.status)}</span>${b.rating?`<span>⭐ ${b.rating}</span>`:""}</div>
+      </div>
+      <div class="edit-btn" onclick="openForm('books','${b.id}')">✎</div>
+    </div>`).join("") || `<div class="empty">کتابی ثبت نشده</div>`;
+
+  const courses = DB.courses.map(c=>`
+    <div class="item">
+      <div class="main" onclick="openForm('courses','${c.id}')">
+        <div class="title">${esc(c.name)}</div>
+        <div class="meta"><span>${esc(c.platform||"")}</span><span class="tag status">${esc(c.status)}</span><span>${c.progress||0}%</span></div>
+      </div>
+      <div class="edit-btn" onclick="openForm('courses','${c.id}')">✎</div>
+    </div>`).join("") || `<div class="empty">دوره‌ای ثبت نشده</div>`;
+
+  const skills = DB.skills.map(s=>`
+    <div class="item">
+      <div class="main" onclick="openForm('skills','${s.id}')">
+        <div class="title">${esc(s.name)}</div>
+        <div class="meta"><span class="tag status">${esc(s.level)}</span></div>
+      </div>
+      <div class="edit-btn" onclick="openForm('skills','${s.id}')">✎</div>
+    </div>`).join("") || `<div class="empty">مهارتی ثبت نشده</div>`;
+
+  mainEl().innerHTML = backHtml +
+    `<div class="section-label"><span class="bar"></span>کتاب‌ها</div><div class="card">${books}</div>` +
+    `<div class="section-label"><span class="bar"></span>دوره‌ها <span style="margin-right:auto; color:var(--gold); cursor:pointer;" onclick="event.stopPropagation(); openForm('courses',null)">+ افزودن</span></div><div class="card">${courses}</div>` +
+    `<div class="section-label"><span class="bar"></span>مهارت‌ها <span style="margin-right:auto; color:var(--gold); cursor:pointer;" onclick="event.stopPropagation(); openForm('skills',null)">+ افزودن</span></div><div class="card">${skills}</div>`;
+}
+
+function renderFinance(backHtml){
+  setHeader("مالی", "بودجه · تراکنش‌ها · اهداف");
+  fab().style.display = "flex";
+  fab().onclick = ()=>openForm("transactions", null);
+
+  const totalBudget = DB.budget.reduce((s,b)=>s+Number(b.monthly||0),0);
+  const totalSpent = DB.budget.reduce((s,b)=>s+Number(b.spent||0),0);
+
+  const budgetHtml = DB.budget.map(b=>{
+    const pct = b.monthly ? Math.min(100, Math.round((b.spent/b.monthly)*100)) : 0;
+    return `<div class="item" onclick="openForm('budget','${b.id}')" style="cursor:pointer;">
+      <div class="main">
+        <div class="title">${esc(b.category)}</div>
+        <div class="meta"><span>${fmtMoney(b.spent)} از ${fmtMoney(b.monthly)} تومان</span></div>
+        <div style="height:6px; background:var(--line); border-radius:4px; margin-top:6px; overflow:hidden;">
+          <div style="height:100%; width:${pct}%; background:${pct>90?'var(--danger)':'var(--gold)'};"></div>
+        </div>
+      </div>
+    </div>`;
+  }).join("") || `<div class="empty">دسته بودجه‌ای ثبت نشده</div>`;
+
+  const txHtml = [...DB.transactions].sort((a,b)=>b.date.localeCompare(a.date)).map(t=>`
+    <div class="item">
+      <div class="main" onclick="openForm('transactions','${t.id}')">
+        <div class="title">${esc(t.note||t.category||"تراکنش")}</div>
+        <div class="meta"><span>${fmtDate(t.date)}</span><span>${esc(t.category||"")}</span></div>
+      </div>
+      <div style="font-weight:800; font-size:13px; color:${t.type==='Income'?'var(--success)':'var(--danger)'};">
+        ${t.type==='Income'?'+':'−'}${fmtMoney(t.amount)}
+      </div>
+    </div>`).join("") || `<div class="empty">تراکنشی ثبت نشده</div>`;
+
+  const fgHtml = DB.financialGoals.map(g=>{
+    const pct = g.target ? Math.min(100, Math.round((g.current/g.target)*100)) : 0;
+    return `<div class="item" onclick="openForm('financialGoals','${g.id}')" style="cursor:pointer;">
+      <div class="main">
+        <div class="title">${esc(g.name)}</div>
+        <div class="meta"><span>${fmtMoney(g.current)} از ${fmtMoney(g.target)} تومان</span><span>${fmtDate(g.deadline)}</span></div>
+        <div style="height:6px; background:var(--line); border-radius:4px; margin-top:6px; overflow:hidden;">
+          <div style="height:100%; width:${pct}%; background:var(--success);"></div>
+        </div>
+      </div>
+    </div>`;
+  }).join("") || `<div class="empty">هدف مالی ثبت نشده</div>`;
+
+  mainEl().innerHTML = backHtml +
+    `<div class="card"><div class="stat-grid">
+      <div class="stat-box"><div class="n">${fmtMoney(totalBudget)}</div><div class="l">بودجه کل ماه</div></div>
+      <div class="stat-box"><div class="n">${fmtMoney(totalSpent)}</div><div class="l">هزینه‌شده</div></div>
+    </div></div>` +
+    `<div class="section-label"><span class="bar"></span>بودجه دسته‌ها <span style="margin-right:auto; color:var(--gold); cursor:pointer;" onclick="event.stopPropagation(); openForm('budget',null)">+ افزودن</span></div><div class="card">${budgetHtml}</div>` +
+    `<div class="section-label"><span class="bar"></span>تراکنش‌های اخیر</div><div class="card">${txHtml}</div>` +
+    `<div class="section-label"><span class="bar"></span>اهداف مالی <span style="margin-right:auto; color:var(--gold); cursor:pointer;" onclick="event.stopPropagation(); openForm('financialGoals',null)">+ افزودن</span></div><div class="card">${fgHtml}</div>`;
+}
+
+/* =========================================================
+   GENERIC FORM MODAL
+========================================================= */
+function openForm(entityKey, id){
+  const cfg = CONFIGS[entityKey];
+  const isNew = !id;
+  const item = isNew ? {} : DB[entityKey].find(x=>x.id===id);
+  if(!item && !isNew) return;
+
+  const fieldsHtml = cfg.fields.map(f=>{
+    const val = item[f.k] ?? "";
+    if(f.type==="select"){
+      const opts = typeof f.opts==="function" ? f.opts() : f.opts;
+      return `<div class="field"><label>${f.label}</label>
+        <select data-k="${f.k}">
+          <option value="">—</option>
+          ${opts.map(o=>`<option value="${esc(o)}" ${val===o?'selected':''}>${esc(o)}</option>`).join("")}
+        </select></div>`;
+    }
+    if(f.type==="textarea"){
+      return `<div class="field"><label>${f.label}</label><textarea data-k="${f.k}">${esc(val)}</textarea></div>`;
+    }
+    return `<div class="field"><label>${f.label}</label><input data-k="${f.k}" type="${f.type}" value="${esc(val)}"></div>`;
+  }).join("");
+
+  $("#modal").innerHTML = `
+    <h3>${isNew?"افزودن":"ویرایش"} ${cfg.title}</h3>
+    <form id="entity-form">${fieldsHtml}</form>
+    <div class="modal-actions">
+      <button class="btn full" id="save-btn" type="button">ذخیره</button>
+      ${!isNew?`<button class="btn danger" id="del-btn" type="button">حذف</button>`:""}
+      <button class="btn secondary" id="cancel-btn" type="button">انصراف</button>
+    </div>
+  `;
+  $("#overlay").classList.remove("hidden");
+
+  $("#save-btn").onclick = async ()=>{
+    const data = isNew ? {id:uid()} : item;
+    document.querySelectorAll("#entity-form [data-k]").forEach(el=>{
+      data[el.dataset.k] = el.value;
+    });
+    if(isNew) DB[entityKey].push(data);
+    await saveDB();
+    closeModal();
+    render();
+  };
+  if(!isNew){
+    $("#del-btn").onclick = async ()=>{
+      DB[entityKey] = DB[entityKey].filter(x=>x.id!==id);
+      await saveDB();
+      closeModal();
+      render();
+    };
+  }
+  $("#cancel-btn").onclick = closeModal;
+}
+function closeModal(){ $("#overlay").classList.add("hidden"); }
+$("#overlay").addEventListener("click", (e)=>{ if(e.target.id==="overlay") closeModal(); });
+
+/* =========================================================
+   MAIN RENDER SWITCH
+========================================================= */
+function render(){
+  document.querySelectorAll("nav.bottom .nb").forEach(b=>{
+    b.classList.toggle("active", b.dataset.view===state.view);
+  });
+  const dt = new Date();
+  $("#header-date").textContent = dt.toLocaleDateString("fa-IR", {weekday:"long", day:"numeric", month:"long"});
+
+  if(state.view==="home") renderHome();
+  else if(state.view==="tasks") renderTasks();
+  else if(state.view==="habits") renderHabits();
+  else if(state.view==="journal") renderJournal();
+  else if(state.view==="more") renderMore();
+}
+
+/* =========================================================
+   INIT
+========================================================= */
+(async function init(){
+  mainEl().innerHTML = `<div class="empty">در حال بارگذاری...</div>`;
+  await loadDB();
+  render();
+})();
+
+if("serviceWorker" in navigator){
+  window.addEventListener("load", ()=>{
+    navigator.serviceWorker.register("./service-worker.js").catch(e=>console.warn("SW register failed", e));
+  });
+}
+</script>
+</body>
+</html>
