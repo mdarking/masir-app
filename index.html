@@ -140,7 +140,8 @@ h2.page-title{font-size:17px; font-weight:800; margin:4px 2px 14px;}
 
 /* buttons */
 .fab{
-  position:fixed; bottom:86px; left:50%; transform:translateX(200px);
+  position:fixed; bottom:86px;
+  right: calc((100vw - min(480px, 100vw)) / 2 + 18px);
   width:52px; height:52px; border-radius:50%; background:var(--gold); color:#fff;
   font-size:26px; display:flex; align-items:center; justify-content:center;
   box-shadow:0 6px 18px rgba(176,141,87,.45); border:none; cursor:pointer; z-index:40;
@@ -484,6 +485,9 @@ function fmtMoney(n){
   n = Number(n)||0;
   return n.toLocaleString("fa-IR");
 }
+function addLink(entityKey, label){
+  return `<span style="margin-right:auto; color:var(--gold); cursor:pointer; font-weight:700;" onclick="event.stopPropagation(); openForm('${entityKey}', null)">${label||"+ افزودن"}</span>`;
+}
 
 /* =========================================================
    NAVIGATION + BROWSER BACK BUTTON SUPPORT
@@ -638,7 +642,7 @@ function renderTasks(){
   let html = "";
   ["Not Started","In Progress","Done"].forEach(st=>{
     const items = groups[st]||[];
-    html += `<div class="section-label"><span class="bar"></span>${labelMap[st]} (${items.length})</div><div class="card">`;
+    html += `<div class="section-label"><span class="bar"></span>${labelMap[st]} (${items.length}) ${addLink("tasks")}</div><div class="card">`;
     html += items.length ? items.map(t=>`
       <div class="item">
         <div class="check ${t.status==='Done'?'done':''}" onclick="toggleTaskDone('${t.id}')"></div>
@@ -679,7 +683,7 @@ function renderHabits(){
     </div>`;
   }).join("") || `<div class="empty">هنوز عادتی اضافه نکردی</div>`;
 
-  mainEl().innerHTML = `<div class="section-label"><span class="bar"></span>وضعیت امروز</div><div class="card">${html}</div>`;
+  mainEl().innerHTML = `<div class="section-label"><span class="bar"></span>وضعیت امروز ${addLink("habits")}</div><div class="card">${html}</div>`;
 }
 
 async function toggleHabit(id){
@@ -710,7 +714,7 @@ function renderJournal(){
     </div>
   `).join("") || `<div class="empty">هنوز ژورنالی ننوشتی</div>`;
 
-  mainEl().innerHTML = html;
+  mainEl().innerHTML = `<div class="section-label"><span class="bar"></span>یادداشت‌ها ${addLink("journal")}</div>` + html;
 }
 
 /* =========================================================
@@ -849,7 +853,8 @@ function renderSimpleList(entityKey, title, backHtml, mapper){
     </div>`;
   }).join("") || `<div class="empty">موردی ثبت نشده</div>`;
 
-  mainEl().innerHTML = backHtml + `<div class="card">${html}</div>`;
+  mainEl().innerHTML = backHtml +
+    `<div class="section-label"><span class="bar"></span>${title} ${addLink(entityKey)}</div><div class="card">${html}</div>`;
 }
 
 function renderLearning(backHtml){
@@ -885,9 +890,9 @@ function renderLearning(backHtml){
     </div>`).join("") || `<div class="empty">مهارتی ثبت نشده</div>`;
 
   mainEl().innerHTML = backHtml +
-    `<div class="section-label"><span class="bar"></span>کتاب‌ها <span style="margin-right:auto; color:var(--gold); cursor:pointer;" onclick="event.stopPropagation(); openForm('books',null)">+ افزودن</span></div><div class="card">${books}</div>` +
-    `<div class="section-label"><span class="bar"></span>دوره‌ها <span style="margin-right:auto; color:var(--gold); cursor:pointer;" onclick="event.stopPropagation(); openForm('courses',null)">+ افزودن</span></div><div class="card">${courses}</div>` +
-    `<div class="section-label"><span class="bar"></span>مهارت‌ها <span style="margin-right:auto; color:var(--gold); cursor:pointer;" onclick="event.stopPropagation(); openForm('skills',null)">+ افزودن</span></div><div class="card">${skills}</div>`;
+    `<div class="section-label"><span class="bar"></span>کتاب‌ها ${addLink("books")}</div><div class="card">${books}</div>` +
+    `<div class="section-label"><span class="bar"></span>دوره‌ها ${addLink("courses")}</div><div class="card">${courses}</div>` +
+    `<div class="section-label"><span class="bar"></span>مهارت‌ها ${addLink("skills")}</div><div class="card">${skills}</div>`;
 }
 
 function renderFinance(backHtml){
@@ -940,9 +945,9 @@ function renderFinance(backHtml){
       <div class="stat-box"><div class="n">${fmtMoney(totalBudget)}</div><div class="l">بودجه کل ماه</div></div>
       <div class="stat-box"><div class="n">${fmtMoney(totalSpent)}</div><div class="l">هزینه‌شده</div></div>
     </div></div>` +
-    `<div class="section-label"><span class="bar"></span>بودجه دسته‌ها <span style="margin-right:auto; color:var(--gold); cursor:pointer;" onclick="event.stopPropagation(); openForm('budget',null)">+ افزودن</span></div><div class="card">${budgetHtml}</div>` +
-    `<div class="section-label"><span class="bar"></span>تراکنش‌های اخیر</div><div class="card">${txHtml}</div>` +
-    `<div class="section-label"><span class="bar"></span>اهداف مالی <span style="margin-right:auto; color:var(--gold); cursor:pointer;" onclick="event.stopPropagation(); openForm('financialGoals',null)">+ افزودن</span></div><div class="card">${fgHtml}</div>`;
+    `<div class="section-label"><span class="bar"></span>بودجه دسته‌ها ${addLink("budget")}</div><div class="card">${budgetHtml}</div>` +
+    `<div class="section-label"><span class="bar"></span>تراکنش‌های اخیر ${addLink("transactions")}</div><div class="card">${txHtml}</div>` +
+    `<div class="section-label"><span class="bar"></span>اهداف مالی ${addLink("financialGoals")}</div><div class="card">${fgHtml}</div>`;
 }
 
 /* =========================================================
