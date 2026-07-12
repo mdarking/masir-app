@@ -237,7 +237,14 @@ nav.bottom .nb .ic{font-size:19px;}
 /* =========================================================
    DATA MODEL + SEED (from user's exported Notion CSVs)
 ========================================================= */
-const todayStr = () => new Date().toISOString().slice(0,10);
+// از تاریخ محلی گوشی استفاده می‌کنیم (نه UTC)، تا شب دقیقاً ساعت ۰۰:۰۰ به‌وقت گوشی روز عوض بشه
+const todayStr = () => {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,"0");
+  const day = String(d.getDate()).padStart(2,"0");
+  return `${y}-${m}-${day}`;
+};
 const uid = () => Math.random().toString(36).slice(2,10);
 
 const SEED = {
@@ -619,6 +626,17 @@ function renderHome(){
 function prLabel(p){ return p==="High"?"بالا":p==="Medium"?"متوسط":"پایین"; }
 function esc(s){ return (s??"").toString().replace(/</g,"&lt;"); }
 
+/* نگاشت مقادیر داخلی انگلیسی به برچسب فارسی نمایشی (فقط برای نمایش،
+   مقدار ذخیره‌شده در داده‌ها همون انگلیسی می‌مونه تا داده‌های قبلی خراب نشن) */
+const OPT_LABELS = {
+  "Task":"تسک", "Project":"پروژه",
+  "Not Started":"شروع‌نشده", "In Progress":"در حال انجام", "Done":"انجام‌شده",
+  "High":"بالا", "Medium":"متوسط", "Low":"پایین",
+  "Expense":"هزینه", "Income":"درآمد",
+  "Weekly":"هفتگی", "Monthly":"ماهانه", "Yearly":"سالانه"
+};
+const trOpt = (o) => OPT_LABELS[o] || o;
+
 async function toggleTaskDone(id){
   const t = DB.tasks.find(x=>x.id===id);
   if(!t) return;
@@ -757,10 +775,10 @@ function renderMore(){
     title:r.name, meta:[r.relation, "آخرین تماس: "+fmtDate(r.lastContact), r.notes].filter(Boolean)
   }));
   if(state.moreSub === "creative") return renderSimpleList("creative","پروژه‌های خلاقانه",backHtml, c=>({
-    title:c.name, meta:[c.type, c.status, fmtDate(c.deadline)].filter(Boolean)
+    title:c.name, meta:[c.type, trOpt(c.status), fmtDate(c.deadline)].filter(Boolean)
   }));
   if(state.moreSub === "reviews") return renderSimpleList("reviews","مرورها",backHtml, r=>({
-    title:r.title, meta:[r.type, fmtDate(r.date)].filter(Boolean)
+    title:r.title, meta:[trOpt(r.type), fmtDate(r.date)].filter(Boolean)
   }));
   if(state.moreSub === "backup") return renderBackup(backHtml);
 }
@@ -983,7 +1001,7 @@ function buildForm(entityKey, id){
       return `<div class="field"><label>${f.label}</label>
         <select data-k="${f.k}">
           <option value="">—</option>
-          ${opts.map(o=>`<option value="${esc(o)}" ${val===o?'selected':''}>${esc(o)}</option>`).join("")}
+          ${opts.map(o=>`<option value="${esc(o)}" ${val===o?'selected':''}>${esc(trOpt(o))}</option>`).join("")}
         </select></div>`;
     }
     if(f.type==="textarea"){
@@ -1050,7 +1068,48 @@ function render(){
   history.replaceState(snapshotState(), "", location.href);
   render();
   syncModalUI();
+  startMidnightWatcher();
 })();
+
+/* =========================================================
+   MIDNIGHT WATCHER — دقیقاً ساعت ۰۰:۰۰ به‌وقت گوشی، روز جدید
+   شروع می‌شه و صفحه رفرش می‌شه تا تیک عادت‌های روزانه (که بر اساس
+   تاریخ ذخیره می‌شن) خودکار برای روز جدید خالی نشون داده بشه —
+   بدون نیاز به بستن و باز کردن اپ.
+========================================================= */
+let __lastKnownDate = todayStr();
+
+function checkForNewDay(){
+  const now = todayStr();
+  if(now !== __lastKnownDate){
+    __lastKnownDate = now;
+    render();      // بازسازی صفحه با تاریخ جدید (تیک‌های عادت روزانه پاک می‌شن)
+    syncModalUI();
+  }
+}
+
+function startMidnightWatcher(){
+  // ۱) یک تایمر دقیق که درست سر ساعت ۰۰:۰۰ فردا فعال می‌شه
+  function scheduleExactMidnight(){
+    const now = new Date();
+    const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()+1, 0, 0, 1, 0);
+    const ms = nextMidnight.getTime() - now.getTime();
+    setTimeout(() => {
+      checkForNewDay();
+      scheduleExactMidnight(); // برای شب بعد دوباره تنظیم می‌شه
+    }, ms);
+  }
+  scheduleExactMidnight();
+
+  // ۲) یک بررسی پشتیبان هر دقیقه، برای مواقعی که گوشی قفل/خواب بوده
+  //    و تایمر دقیق به‌موقع اجرا نشده باشه
+  setInterval(checkForNewDay, 60 * 1000);
+
+  // ۳) وقتی کاربر بعد از مدتی برگشت به اپ (از پس‌زمینه)، فوراً چک کن
+  document.addEventListener("visibilitychange", () => {
+    if(document.visibilityState === "visible") checkForNewDay();
+  });
+}
 
 if("serviceWorker" in navigator){
   window.addEventListener("load", ()=>{
