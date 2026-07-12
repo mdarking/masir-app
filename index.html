@@ -689,6 +689,7 @@ const MORE_TILES = [
   {key:"relationships", ic:"❤️", t:"روابط", d:"افراد مهم زندگی‌ت"},
   {key:"creative", ic:"🎨", t:"پروژه‌های خلاقانه", d:"ایده و پروژه‌های شخصی"},
   {key:"reviews", ic:"🔄", t:"مرورها", d:"مرور هفتگی/ماهانه/سالانه"},
+  {key:"backup", ic:"💾", t:"پشتیبان‌گیری", d:"خروجی و ورودی JSON"},
 ];
 
 function renderMore(){
@@ -722,8 +723,81 @@ function renderMore(){
   if(state.moreSub === "reviews") return renderSimpleList("reviews","مرورها",backHtml, r=>({
     title:r.title, meta:[r.type, fmtDate(r.date)].filter(Boolean)
   }));
+  if(state.moreSub === "backup") return renderBackup(backHtml);
 }
 function openMoreSub(key){ state.moreSub = key; render(); }
+
+/* =========================================================
+   BACKUP: EXPORT / IMPORT
+========================================================= */
+function renderBackup(backHtml){
+  setHeader("پشتیبان‌گیری", "خروجی و ورودی اطلاعات");
+  fab().style.display = "none";
+  mainEl().innerHTML = backHtml + `
+    <div class="card">
+      <div style="font-weight:800; margin-bottom:8px;">خروجی گرفتن (Export)</div>
+      <div style="font-size:12.5px; color:var(--muted); margin-bottom:12px; line-height:1.9;">
+        یک فایل JSON از تمام اطلاعات فعلی‌ات (تسک‌ها، عادت‌ها، ژورنال، مالی، یادگیری، روابط و...) دانلود می‌شه.
+        این فایل رو یه جای امن (گوگل درایو، ایمیل خودت و...) نگه دار.
+      </div>
+      <button class="btn full" onclick="exportData()">📤 دانلود فایل پشتیبان</button>
+    </div>
+    <div class="card">
+      <div style="font-weight:800; margin-bottom:8px;">بازیابی (Import)</div>
+      <div style="font-size:12.5px; color:var(--muted); margin-bottom:12px; line-height:1.9;">
+        یک فایل پشتیبان قبلی رو انتخاب کن تا اطلاعاتت برگرده. این کاربردیه وقتی می‌خوای اطلاعات رو
+        به گوشی یا مرورگر دیگه‌ای منتقل کنی. <b>توجه: تمام اطلاعات فعلی با اطلاعات فایل جایگزین می‌شه.</b>
+      </div>
+      <input type="file" id="import-file" accept="application/json" style="display:none;" onchange="importData(event)">
+      <button class="btn secondary full" onclick="document.getElementById('import-file').click()">📥 انتخاب فایل و بازیابی</button>
+    </div>
+    <div style="font-size:11px; color:var(--muted); text-align:center; padding:6px 20px; line-height:1.8;">
+      اطلاعات فقط داخل همین مرورگر/گوشی ذخیره می‌شن و بین دستگاه‌ها خودکار سینک نمی‌شن.
+      برای جلوگیری از گم‌شدن اطلاعات (مثلاً موقع پاک کردن کش یا تعویض گوشی)، هر چند وقت یک‌بار خروجی بگیر.
+    </div>
+  `;
+}
+
+function exportData(){
+  const dataStr = JSON.stringify(DB, null, 2);
+  const blob = new Blob([dataStr], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `masir-backup-${todayStr()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+async function importData(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  try{
+    const text = await file.text();
+    const parsed = JSON.parse(text);
+    const requiredKeys = ["tasks","habits","journal","lifeAreas"];
+    const valid = requiredKeys.every(k => Array.isArray(parsed[k]));
+    if(!valid){
+      alert("فایل انتخاب‌شده معتبر نیست یا فرمتش با فایل پشتیبان «مسیر» مطابقت نداره.");
+      event.target.value = "";
+      return;
+    }
+    const ok = confirm("با بازیابی این فایل، تمام اطلاعات فعلی جایگزین می‌شه. مطمئنی؟");
+    if(!ok){ event.target.value = ""; return; }
+    DB = parsed;
+    if(!DB.habitLog) DB.habitLog = {};
+    await saveDB();
+    alert("بازیابی با موفقیت انجام شد ✅");
+    state.moreSub = null;
+    state.view = "home";
+    render();
+  }catch(e){
+    alert("خطا در خواندن فایل. مطمئن شو یک فایل JSON معتبر انتخاب کردی.");
+  }
+  event.target.value = "";
+}
 
 function renderSimpleList(entityKey, title, backHtml, mapper){
   setHeader(title, `${DB[entityKey].length} مورد`);
