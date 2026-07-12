@@ -464,6 +464,7 @@ const CONFIGS = {
    ROUTER STATE
 ========================================================= */
 let state = { view:"home", moreSub:null };
+let modal = null; // {entityKey, id} or null — kept in sync with browser history
 
 const $ = sel => document.querySelector(sel);
 const mainEl = () => document.getElementById("main");
@@ -485,13 +486,47 @@ function fmtMoney(n){
 }
 
 /* =========================================================
-   NAVIGATION
+   NAVIGATION + BROWSER BACK BUTTON SUPPORT
+   Every meaningful step (tab change, opening a "more" sub-page,
+   opening the add/edit modal) is pushed onto the browser history.
+   That way the phone's back button / gesture moves one step back
+   inside the app first, and only leaves the app once there is truly
+   nothing left to go back to.
 ========================================================= */
+function snapshotState(){
+  return { view: state.view, moreSub: state.moreSub, modal: modal };
+}
+function sameSnapshot(a,b){
+  return a.view===b.view && a.moreSub===b.moreSub &&
+    JSON.stringify(a.modal)===JSON.stringify(b.modal);
+}
+function navigate(next){
+  const target = {
+    view: "view" in next ? next.view : state.view,
+    moreSub: "moreSub" in next ? next.moreSub : state.moreSub,
+    modal: "modal" in next ? next.modal : modal,
+  };
+  if(sameSnapshot(target, snapshotState())) return; // no-op, avoid dead history entries
+  history.pushState(target, "", location.href);
+  applySnapshot(target);
+}
+function applySnapshot(snap){
+  state.view = snap.view;
+  state.moreSub = snap.moreSub;
+  modal = snap.modal;
+  render();
+  syncModalUI();
+}
+function goBack(){ history.back(); }
+
+window.addEventListener("popstate", (e)=>{
+  const snap = e.state || { view:"home", moreSub:null, modal:null };
+  applySnapshot(snap);
+});
+
 document.querySelectorAll("nav.bottom .nb").forEach(btn=>{
   btn.addEventListener("click", ()=>{
-    state.view = btn.dataset.view;
-    state.moreSub = null;
-    render();
+    navigate({ view: btn.dataset.view, moreSub:null, modal:null });
   });
 });
 
@@ -704,7 +739,7 @@ function renderMore(){
       </div>`).join("")}</div>`;
     return;
   }
-  const backHtml = `<div class="back-row" onclick="state.moreSub=null; render();">→ بازگشت به بیشتر</div>`;
+  const backHtml = `<div class="back-row" onclick="goBack()">→ بازگشت به بیشتر</div>`;
 
   if(state.moreSub === "goals") return renderSimpleList("goals","اهداف",backHtml, g=>({
     title:g.name, meta:[g.area, g.status, g.timeframe, fmtDate(g.targetDate)].filter(Boolean)
@@ -725,7 +760,7 @@ function renderMore(){
   }));
   if(state.moreSub === "backup") return renderBackup(backHtml);
 }
-function openMoreSub(key){ state.moreSub = key; render(); }
+function openMoreSub(key){ navigate({ view:"more", moreSub:key, modal:null }); }
 
 /* =========================================================
    BACKUP: EXPORT / IMPORT
@@ -790,9 +825,7 @@ async function importData(event){
     if(!DB.habitLog) DB.habitLog = {};
     await saveDB();
     alert("بازیابی با موفقیت انجام شد ✅");
-    state.moreSub = null;
-    state.view = "home";
-    render();
+    navigate({ view:"home", moreSub:null, modal:null });
   }catch(e){
     alert("خطا در خواندن فایل. مطمئن شو یک فایل JSON معتبر انتخاب کردی.");
   }
@@ -852,7 +885,7 @@ function renderLearning(backHtml){
     </div>`).join("") || `<div class="empty">مهارتی ثبت نشده</div>`;
 
   mainEl().innerHTML = backHtml +
-    `<div class="section-label"><span class="bar"></span>کتاب‌ها</div><div class="card">${books}</div>` +
+    `<div class="section-label"><span class="bar"></span>کتاب‌ها <span style="margin-right:auto; color:var(--gold); cursor:pointer;" onclick="event.stopPropagation(); openForm('books',null)">+ افزودن</span></div><div class="card">${books}</div>` +
     `<div class="section-label"><span class="bar"></span>دوره‌ها <span style="margin-right:auto; color:var(--gold); cursor:pointer;" onclick="event.stopPropagation(); openForm('courses',null)">+ افزودن</span></div><div class="card">${courses}</div>` +
     `<div class="section-label"><span class="bar"></span>مهارت‌ها <span style="margin-right:auto; color:var(--gold); cursor:pointer;" onclick="event.stopPropagation(); openForm('skills',null)">+ افزودن</span></div><div class="card">${skills}</div>`;
 }
@@ -916,10 +949,27 @@ function renderFinance(backHtml){
    GENERIC FORM MODAL
 ========================================================= */
 function openForm(entityKey, id){
+  // Opening the add/edit modal is one more "step" in the app —
+  // push it to history so the back button/gesture closes the modal
+  // first instead of exiting the whole app.
+  navigate({ modal: { entityKey, id: id || null } });
+}
+
+function syncModalUI(){
+  if(modal){
+    buildForm(modal.entityKey, modal.id);
+    $("#overlay").classList.remove("hidden");
+  } else {
+    $("#overlay").classList.add("hidden");
+    $("#modal").innerHTML = "";
+  }
+}
+
+function buildForm(entityKey, id){
   const cfg = CONFIGS[entityKey];
   const isNew = !id;
   const item = isNew ? {} : DB[entityKey].find(x=>x.id===id);
-  if(!item && !isNew) return;
+  if(!item && !isNew){ modal = null; syncModalUI(); return; }
 
   const fieldsHtml = cfg.fields.map(f=>{
     const val = item[f.k] ?? "";
@@ -946,7 +996,6 @@ function openForm(entityKey, id){
       <button class="btn secondary" id="cancel-btn" type="button">انصراف</button>
     </div>
   `;
-  $("#overlay").classList.remove("hidden");
 
   $("#save-btn").onclick = async ()=>{
     const data = isNew ? {id:uid()} : item;
@@ -955,21 +1004,18 @@ function openForm(entityKey, id){
     });
     if(isNew) DB[entityKey].push(data);
     await saveDB();
-    closeModal();
-    render();
+    goBack(); // pops the modal history entry -> popstate closes modal + re-renders list
   };
   if(!isNew){
     $("#del-btn").onclick = async ()=>{
       DB[entityKey] = DB[entityKey].filter(x=>x.id!==id);
       await saveDB();
-      closeModal();
-      render();
+      goBack();
     };
   }
-  $("#cancel-btn").onclick = closeModal;
+  $("#cancel-btn").onclick = goBack;
 }
-function closeModal(){ $("#overlay").classList.add("hidden"); }
-$("#overlay").addEventListener("click", (e)=>{ if(e.target.id==="overlay") closeModal(); });
+$("#overlay").addEventListener("click", (e)=>{ if(e.target.id==="overlay" && modal) goBack(); });
 
 /* =========================================================
    MAIN RENDER SWITCH
@@ -994,7 +1040,11 @@ function render(){
 (async function init(){
   mainEl().innerHTML = `<div class="empty">در حال بارگذاری...</div>`;
   await loadDB();
+  // Establish the root history entry so the very first back-press
+  // has something consistent to compare against.
+  history.replaceState(snapshotState(), "", location.href);
   render();
+  syncModalUI();
 })();
 
 if("serviceWorker" in navigator){
