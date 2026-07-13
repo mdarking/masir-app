@@ -1225,6 +1225,10 @@ const LICENSE_CONFIG = {
         return false;
       }
       localStorage.setItem("masir_lic_ok_"+token, "1");
+      // پرچم عمومیِ فارغ از توکن — برای وقتی که اپ از آیکون هوم‌اسکرین
+      // باز می‌شه و در URL هیچ توکنی وجود نداره (چون start_url توی
+      // manifest.json کوئری‌استرینگ نداره)
+      localStorage.setItem("masir_lic_ok", token);
       return true;
     }catch(e){
       $g("gate-error").textContent = errorText("network");
@@ -1237,6 +1241,14 @@ const LICENSE_CONFIG = {
     const token = params.get("l");
 
     if(!token){
+      // احتمالاً از آیکون هوم‌اسکرین باز شده (بدون کوئری‌استرینگ توی URL).
+      // اگه این دستگاه قبلاً یک‌بار با یک لینک معتبر فعال شده، همون پرچم
+      // عمومی رو پیدا می‌کنیم و بدون نیاز به لینک دوباره وارد اپ می‌شیم.
+      const savedToken = localStorage.getItem("masir_lic_ok");
+      if(savedToken && localStorage.getItem("masir_lic_ok_"+savedToken) === "1"){
+        showApp();
+        return;
+      }
       showGate("دسترسی نامعتبر", "برای استفاده از مسیر، لطفاً از لینک اختصاصی که دریافت کرده‌اید استفاده کنید.", false);
       return;
     }
