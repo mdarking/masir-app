@@ -1174,8 +1174,8 @@ if("serviceWorker" in navigator){
    Project Settings → API جایگزین کن (دقیقاً مثل admin.html)
 ========================================================= */
 const LICENSE_CONFIG = {
-  SUPABASE_URL: "https://YOUR-PROJECT.supabase.co",
-  SUPABASE_ANON_KEY: "YOUR-ANON-KEY"
+  SUPABASE_URL: "https://cczfgjidiliqtoceuprs.supabase.co",
+  SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNjemZnamlkaWxpcXRvY2V1cHJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM5NjA0ODgsImV4cCI6MjA5OTUzNjQ4OH0.3qS6UJ0xfoWg5yNX0-eP_NLtxX2--lbzGThRPwb7LqQ"
 };
 
 (function licenseGate(){
@@ -1237,7 +1237,7 @@ const LICENSE_CONFIG = {
     const token = params.get("l");
 
     if(!token){
-      showGate("دسترسی نامعتبر", "برای استفاده از مسیر، لطفاً از لینک اختصاصی که از فروشنده دریافت کرده‌اید استفاده کنید.", false);
+      showGate("دسترسی نامعتبر", "برای استفاده از مسیر، لطفاً از لینک اختصاصی که دریافت کرده‌اید استفاده کنید.", false);
       return;
     }
 
