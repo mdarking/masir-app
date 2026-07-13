@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>پنل مدیریت — مسیر</title>
+<link rel="icon" href="./icon-192.png" type="image/png">
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --cream:#FAF6EC; --card:#FFFFFF; --dark:#1C1B18; --dark2:#2A2822;
+  --gold:#B08D57; --gold-light:#E7D9BE; --muted:#948E7E; --line:#EAE3D2;
+  --danger:#B4544A; --success:#5C8A6A;
+  --shadow: 0 2px 14px rgba(28,27,24,0.06);
+}
+*{box-sizing:border-box;}
+body{font-family:'Vazirmatn',sans-serif;background:var(--cream);color:var(--dark);margin:0;padding:20px;}
+.wrap{max-width:760px;margin:0 auto;}
+h1{font-size:20px;font-weight:800;margin:0 0 4px;}
+.sub{color:var(--muted);font-size:13px;margin-bottom:20px;}
+.card{background:var(--card);border-radius:16px;padding:18px;box-shadow:var(--shadow);margin-bottom:16px;}
+input{width:100%;padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:var(--cream);
+  font-family:'Vazirmatn',sans-serif;font-size:14px;margin-bottom:10px;}
+button{cursor:pointer;border:none;border-radius:10px;padding:11px 16px;font-family:'Vazirmatn',sans-serif;
+  font-weight:700;font-size:14px;}
+.btn-main{background:var(--dark);color:var(--gold-light);width:100%;}
+.btn-main:disabled{opacity:.5;cursor:default;}
+.btn-ghost{background:var(--line);color:var(--dark);}
+.btn-danger{background:#F3E3E1;color:var(--danger);}
+.btn-small{padding:7px 12px;font-size:12.5px;}
+.row{display:flex;gap:8px;}
+.error{color:var(--danger);font-size:12.5px;min-height:16px;margin-bottom:6px;}
+.item{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px;}
+.item-top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;}
+.name{font-weight:700;font-size:14.5px;}
+.badge{font-size:11.5px;padding:3px 10px;border-radius:20px;font-weight:700;}
+.badge.pending{background:var(--line);color:var(--muted);}
+.badge.active{background:#E4EEE6;color:var(--success);}
+.badge.revoked{background:#F3E3E1;color:var(--danger);}
+.meta{font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.8;}
+.result-box{background:var(--gold-light);border-radius:12px;padding:14px;margin-top:10px;}
+.result-box .line{display:flex;gap:6px;align-items:center;margin-bottom:8px;}
+.result-box input{margin:0;font-size:13px;}
+.hidden{display:none !important;}
+.empty{color:var(--muted);font-size:13.5px;text-align:center;padding:20px 0;}
+.top-row{display:flex;justify-content:space-between;align-items:center;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ===== ورود ادمین ===== -->
+  <div id="login-view">
+    <h1>پنل مدیریت مسیر</h1>
+    <div class="sub">ورود مخصوص ادمین</div>
+    <div class="card">
+      <input id="login-email" type="email" placeholder="ایمیل" autocomplete="username">
+      <input id="login-pass" type="password" placeholder="رمز عبور" autocomplete="current-password">
+      <div class="error" id="login-error"></div>
+      <button class="btn-main" id="login-btn">ورود</button>
+    </div>
+  </div>
+
+  <!-- ===== پنل اصلی ===== -->
+  <div id="admin-view" class="hidden">
+    <div class="top-row">
+      <div>
+        <h1>پنل مدیریت مسیر</h1>
+        <div class="sub">ساخت و مدیریت لینک‌های اختصاصی مشتری‌ها</div>
+      </div>
+      <button class="btn-ghost btn-small" id="logout-btn">خروج</button>
+    </div>
+
+    <div class="card">
+      <input id="new-customer" placeholder="نام مشتری (اختیاری، فقط برای یادداشت خودت)">
+      <button class="btn-main" id="create-btn">+ ساخت لایسنس جدید</button>
+      <div class="error" id="create-error"></div>
+      <div class="result-box hidden" id="result-box">
+        <div style="font-size:12.5px;color:var(--dark);margin-bottom:8px;font-weight:700;">
+          ⚠️ این کد فقط همین یک‌بار نمایش داده می‌شه — حتماً همین الان برای مشتری کپی/ارسال کن.
+        </div>
+        <div class="line"><input id="result-link" readonly><button class="btn-ghost btn-small" onclick="copyField('result-link')">کپی لینک</button></div>
+        <div class="line"><input id="result-code" readonly><button class="btn-ghost btn-small" onclick="copyField('result-code')">کپی کد</button></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="font-weight:700;margin-bottom:10px;">لایسنس‌ها</div>
+      <div id="list"></div>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* همین دو مقدار باید دقیقاً با index.html یکی باشه */
+const LICENSE_CONFIG = {
+  SUPABASE_URL: "https://YOUR-PROJECT.supabase.co",
+  SUPABASE_ANON_KEY: "YOUR-ANON-KEY"
+};
+/* آدرس اپ روی گیت‌هاب پیجز، برای ساخت خودکار لینک اختصاصی */
+const APP_BASE_URL = "https://USERNAME.github.io/masir-app/";
+
+const sb = window.supabase.createClient(LICENSE_CONFIG.SUPABASE_URL, LICENSE_CONFIG.SUPABASE_ANON_KEY);
+const $ = (id) => document.getElementById(id);
+
+function copyField(id){
+  const el = $(id);
+  el.select();
+  document.execCommand("copy");
+}
+
+function statusLabel(s){
+  return s==="active" ? "فعال" : s==="revoked" ? "باطل‌شده" : "در انتظار فعال‌سازی";
+}
+
+async function refreshList(){
+  const { data, error } = await sb.rpc("list_licenses");
+  const listEl = $("list");
+  if(error){ listEl.innerHTML = `<div class="empty">خطا در دریافت لیست</div>`; return; }
+  if(!data || data.length===0){ listEl.innerHTML = `<div class="empty">هنوز لایسنسی ساخته نشده</div>`; return; }
+
+  listEl.innerHTML = data.map(l => {
+    const link = APP_BASE_URL + "?l=" + l.link_token;
+    return `<div class="item">
+      <div class="item-top">
+        <div class="name">${l.customer_name ? escapeHtml(l.customer_name) : "بدون نام"}</div>
+        <span class="badge ${l.status}">${statusLabel(l.status)}</span>
+      </div>
+      <div class="meta">
+        دستگاه: ${l.device_locked ? "قفل‌شده ✅" : "هنوز فعال نشده"}<br>
+        ساخته‌شده: ${new Date(l.created_at).toLocaleDateString("fa-IR")}
+        ${l.activated_at ? " · فعال‌شده: " + new Date(l.activated_at).toLocaleDateString("fa-IR") : ""}
+      </div>
+      <div class="row">
+        <button class="btn-ghost btn-small" onclick="copyLink('${link}')">کپی لینک</button>
+        ${l.status!=="revoked" ? `<button class="btn-ghost btn-small" onclick="doReset('${l.id}')">ریست دستگاه</button>` : ""}
+        ${l.status!=="revoked" ? `<button class="btn-danger btn-small" onclick="doRevoke('${l.id}')">باطل کردن</button>` : ""}
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function escapeHtml(s){ return s.replace(/</g,"&lt;"); }
+
+function copyLink(link){
+  navigator.clipboard?.writeText(link);
+  alert("لینک کپی شد");
+}
+
+async function doRevoke(id){
+  if(!confirm("مطمئنی می‌خوای این لایسنس رو برای همیشه باطل کنی؟")) return;
+  await sb.rpc("revoke_license", { p_id: id });
+  refreshList();
+}
+
+async function doReset(id){
+  if(!confirm("قفل دستگاه برای این لایسنس پاک بشه؟ (کد قبلی هنوز معتبره)")) return;
+  await sb.rpc("reset_license", { p_id: id });
+  refreshList();
+}
+
+$("create-btn").onclick = async () => {
+  $("create-error").textContent = "";
+  $("create-btn").disabled = true;
+  const { data, error } = await sb.rpc("create_license", { p_customer: $("new-customer").value.trim() || null });
+  $("create-btn").disabled = false;
+  if(error || !data){ $("create-error").textContent = "ساخت لایسنس با خطا مواجه شد."; return; }
+
+  $("new-customer").value = "";
+  $("result-link").value = APP_BASE_URL + "?l=" + data.token;
+  $("result-code").value = data.code;
+  $("result-box").classList.remove("hidden");
+  refreshList();
+};
+
+/* ===== احراز هویت ادمین ===== */
+$("login-btn").onclick = async () => {
+  $("login-error").textContent = "";
+  const email = $("login-email").value.trim();
+  const pass = $("login-pass").value;
+  const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+  if(error){ $("login-error").textContent = "ایمیل یا رمز اشتباهه."; return; }
+  showAdmin();
+};
+
+$("logout-btn").onclick = async () => {
+  await sb.auth.signOut();
+  location.reload();
+};
+
+async function showAdmin(){
+  $("login-view").classList.add("hidden");
+  $("admin-view").classList.remove("hidden");
+  refreshList();
+}
+
+(async function initAdmin(){
+  const { data:{ session } } = await sb.auth.getSession();
+  if(session) showAdmin();
+})();
+</script>
+</body>
+</html>

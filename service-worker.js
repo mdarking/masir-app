@@ -1,4 +1,4 @@
-const CACHE_NAME = "masir-cache-v4";
+const CACHE_NAME = "masir-cache-v5";
 const ASSETS = [
   "./",
   "./index.html",
@@ -25,6 +25,11 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
+
+  // درخواست‌های خارجی (مثل Supabase برای فعال‌سازی لایسنس) هرگز کش نشن
+  // و مستقیم به شبکه برن — اینجا فقط فایل‌های خودِ سایت کش می‌شن.
+  if (new URL(event.request.url).origin !== self.location.origin) return;
+
   event.respondWith(
     caches.match(event.request).then((cached) => {
       const fetchPromise = fetch(event.request)

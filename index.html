@@ -45,9 +45,10 @@ body{
   min-height:100vh;
   background:var(--cream);
   position:relative;
-  display:flex;
+  display:none;
   flex-direction:column;
 }
+#app.ready{ display:flex; }
 /* ---------- HEADER ---------- */
 header.top{
   background:var(--dark);
@@ -201,9 +202,56 @@ nav.bottom .nb .ic{font-size:19px;}
 .modal-actions{display:flex; gap:10px; margin-top:16px;}
 
 ::-webkit-scrollbar{width:0;}
+/* ---------- LICENSE GATE ---------- */
+.gate-screen{
+  display:none;
+  position:fixed; inset:0;
+  background:var(--cream);
+  z-index:9999;
+  align-items:center;
+  justify-content:center;
+  padding:24px;
+}
+.gate-box{
+  width:100%; max-width:380px;
+  background:var(--card);
+  border-radius:20px;
+  box-shadow:var(--shadow);
+  padding:28px 24px;
+  text-align:center;
+}
+.gate-logo{
+  font-size:22px; font-weight:800; color:var(--dark); margin-bottom:4px;
+}
+.gate-title{
+  font-size:16px; font-weight:800; color:var(--dark); margin-top:14px; margin-bottom:8px;
+}
+.gate-msg{
+  font-size:13px; color:var(--muted); line-height:1.9; margin-bottom:18px;
+}
+.gate-input{
+  width:100%; padding:14px; border-radius:12px; border:1px solid var(--line);
+  background:var(--cream); font-family:'Vazirmatn',sans-serif; font-size:16px;
+  text-align:center; letter-spacing:2px; margin-bottom:12px;
+}
+.gate-error{
+  color:var(--danger); font-size:12.5px; margin-top:10px; min-height:16px; line-height:1.8;
+}
 </style>
 </head>
 <body>
+
+<div class="gate-screen" id="gate">
+  <div class="gate-box">
+    <div class="gate-logo">مسیر</div>
+    <div class="gate-title" id="gate-title">در حال بررسی دسترسی...</div>
+    <div class="gate-msg" id="gate-msg"></div>
+    <input class="gate-input" id="gate-code-input" style="display:none;" type="tel" inputmode="numeric" placeholder="کد فعال‌سازی" autocomplete="off">
+    <button class="btn full" id="gate-submit-btn" style="display:none;">ورود به مسیر</button>
+    <div class="gate-error" id="gate-error"></div>
+  </div>
+</div>
+
 <div id="app">
 
   <header class="top">
@@ -233,6 +281,7 @@ nav.bottom .nb .ic{font-size:19px;}
   <div class="modal" id="modal"></div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 /* =========================================================
    DATA MODEL + SEED (from user's exported Notion CSVs)
@@ -1060,7 +1109,7 @@ function render(){
 /* =========================================================
    INIT
 ========================================================= */
-(async function init(){
+async function initApp(){
   mainEl().innerHTML = `<div class="empty">در حال بارگذاری...</div>`;
   await loadDB();
   // Establish the root history entry so the very first back-press
@@ -1069,7 +1118,7 @@ function render(){
   render();
   syncModalUI();
   startMidnightWatcher();
-})();
+}
 
 /* =========================================================
    MIDNIGHT WATCHER — دقیقاً ساعت ۰۰:۰۰ به‌وقت گوشی، روز جدید
@@ -1116,6 +1165,103 @@ if("serviceWorker" in navigator){
     navigator.serviceWorker.register("./service-worker.js").catch(e=>console.warn("SW register failed", e));
   });
 }
+</script>
+
+<script>
+/* =========================================================
+   LICENSE GATE — قبل از باز شدن اپ اجرا می‌شه
+   بعد از ساخت پروژه در Supabase، این دو مقدار رو از
+   Project Settings → API جایگزین کن (دقیقاً مثل admin.html)
+========================================================= */
+const LICENSE_CONFIG = {
+  SUPABASE_URL: "https://YOUR-PROJECT.supabase.co",
+  SUPABASE_ANON_KEY: "YOUR-ANON-KEY"
+};
+
+(function licenseGate(){
+  const sb = window.supabase.createClient(LICENSE_CONFIG.SUPABASE_URL, LICENSE_CONFIG.SUPABASE_ANON_KEY);
+  const $g = (id) => document.getElementById(id);
+
+  function getDeviceId(){
+    let id = localStorage.getItem("masir_device_id");
+    if(!id){
+      id = (crypto.randomUUID ? crypto.randomUUID() : (Date.now()+"-"+Math.random().toString(36).slice(2)));
+      localStorage.setItem("masir_device_id", id);
+    }
+    return id;
+  }
+
+  function showApp(){
+    $g("gate").style.display = "none";
+    document.getElementById("app").classList.add("ready");
+    initApp();
+  }
+
+  function showGate(title, msg, showForm){
+    $g("gate").style.display = "flex";
+    $g("gate-title").textContent = title;
+    $g("gate-msg").textContent = msg;
+    $g("gate-code-input").style.display = showForm ? "block" : "none";
+    $g("gate-submit-btn").style.display = showForm ? "block" : "none";
+  }
+
+  function errorText(code){
+    return ({
+      not_found: "این لینک معتبر نیست. لطفاً از لینک اختصاصی خودتون استفاده کنید.",
+      revoked: "دسترسی این لینک غیرفعال شده. با فروشنده تماس بگیرید.",
+      bad_code: "کد وارد شده اشتباهه. لطفاً دوباره امتحان کنید.",
+      already_used: "این لینک قبلاً روی یک دستگاه دیگه فعال شده. با فروشنده تماس بگیرید.",
+      network: "اتصال اینترنت برقرار نیست. برای فعال‌سازی اولیه به اینترنت نیاز دارید."
+    })[code] || "خطایی رخ داد. دوباره امتحان کنید.";
+  }
+
+  async function tryActivate(token, code){
+    $g("gate-error").textContent = "";
+    const device = getDeviceId();
+    try{
+      const { data, error } = await sb.rpc("activate_license", { p_token: token, p_code: code, p_device: device });
+      if(error || !data || data.ok !== true){
+        $g("gate-error").textContent = errorText(data && data.error);
+        return false;
+      }
+      localStorage.setItem("masir_lic_ok_"+token, "1");
+      return true;
+    }catch(e){
+      $g("gate-error").textContent = errorText("network");
+      return false;
+    }
+  }
+
+  async function init(){
+    const params = new URLSearchParams(location.search);
+    const token = params.get("l");
+
+    if(!token){
+      showGate("دسترسی نامعتبر", "برای استفاده از مسیر، لطفاً از لینک اختصاصی که از فروشنده دریافت کرده‌اید استفاده کنید.", false);
+      return;
+    }
+
+    // اگه قبلاً روی همین دستگاه فعال شده، مستقیم وارد اپ شو (بدون نیاز به اینترنت)
+    if(localStorage.getItem("masir_lic_ok_"+token) === "1"){
+      showApp();
+      return;
+    }
+
+    showGate("فعال‌سازی مسیر", "کدی که هنگام خرید دریافت کردید رو وارد کنید:", true);
+    $g("gate-submit-btn").onclick = async () => {
+      const code = $g("gate-code-input").value.trim();
+      if(!code){ $g("gate-error").textContent = "لطفاً کد رو وارد کنید."; return; }
+      $g("gate-submit-btn").disabled = true;
+      $g("gate-submit-btn").textContent = "در حال بررسی...";
+      const ok = await tryActivate(token, code);
+      $g("gate-submit-btn").disabled = false;
+      $g("gate-submit-btn").textContent = "ورود به مسیر";
+      if(ok) showApp();
+    };
+  }
+
+  init();
+})();
 </script>
 </body>
 </html>
