@@ -135,6 +135,16 @@ h2.page-title{font-size:17px; font-weight:800; margin:4px 2px 14px;}
 .tag.status{background:var(--gold-light); color:#5c4a2a;}
 .item .edit-btn{color:var(--muted); font-size:16px; padding:4px; cursor:pointer;}
 
+/* daily checklist drag-to-reorder */
+.daily-item{background:var(--card);}
+.daily-item .drag-handle{
+  font-size:17px; color:var(--muted); padding:2px 4px; cursor:grab; flex-shrink:0;
+  touch-action:none; user-select:none;
+}
+.daily-item.dragging{
+  opacity:.55; background:var(--gold-light); border-radius:10px; position:relative; z-index:5;
+}
+
 .empty{
   text-align:center; padding:26px 10px; color:var(--muted); font-size:12.5px;
 }
@@ -171,15 +181,16 @@ h2.page-title{font-size:17px; font-weight:800; margin:4px 2px 14px;}
 nav.bottom{
   position:fixed; bottom:0; left:50%; transform:translateX(-50%);
   width:100%; max-width:480px; background:var(--dark); border-radius:20px 20px 0 0;
-  display:flex; justify-content:space-around; padding:10px 6px 14px; z-index:50;
+  display:flex; justify-content:space-around; padding:10px 2px 14px; z-index:50;
   box-shadow:0 -6px 20px rgba(0,0,0,.15);
 }
 nav.bottom .nb{
   display:flex; flex-direction:column; align-items:center; gap:3px; color:#8d8977;
-  font-size:10px; cursor:pointer; padding:4px 8px; border-radius:10px; transition:.15s;
+  font-size:9.5px; cursor:pointer; padding:4px 4px; border-radius:10px; transition:.15s;
+  flex:1; min-width:0;
 }
 nav.bottom .nb.active{color:var(--gold-light);}
-nav.bottom .nb .ic{font-size:19px;}
+nav.bottom .nb .ic{font-size:18px;}
 
 /* modal */
 .overlay{
@@ -270,6 +281,7 @@ nav.bottom .nb .ic{font-size:19px;}
 
   <nav class="bottom">
     <div class="nb" data-view="home"><span class="ic">🏠</span>خانه</div>
+    <div class="nb" data-view="daily"><span class="ic">📝</span>روزانه</div>
     <div class="nb" data-view="tasks"><span class="ic">✅</span>تسک‌ها</div>
     <div class="nb" data-view="habits"><span class="ic">🔁</span>عادت‌ها</div>
     <div class="nb" data-view="journal"><span class="ic">📔</span>ژورنال</div>
@@ -321,6 +333,10 @@ const SEED = {
     {id:uid(), name:"نوشتن ژورنال", frequency:"روزانه", area:"معنویت"},
   ],
   habitLog: {}, // { "habitId|date": true/false }
+  dailyTasks: [
+    {id:uid(), name:"چک کردن ایمیل‌ها", done:false},
+    {id:uid(), name:"۱۰ دقیقه پیاده‌روی", done:false},
+  ], // چک‌لیست روزانه — موقعیت هر آیتم در آرایه = اولویتش؛ هر شب موارد تیک‌خورده حذف می‌شن
   journal: [
     {id:uid(), date:"2026-07-12", mood:"خوب", gratitude:"سلامتی، خانواده، یک روز آفتابی", prompt:"امروز چه چیزی یاد گرفتم؟", highlights:"تکمیل یک تسک مهم"},
   ],
@@ -365,14 +381,33 @@ const STORAGE_KEY = "masir-app-data";
 async function loadDB(){
   try{
     const raw = localStorage.getItem(STORAGE_KEY);
-    if(raw){ DB = JSON.parse(raw); return; }
+    if(raw){
+      DB = JSON.parse(raw);
+      if(!DB.dailyTasks) DB.dailyTasks = []; // سازگاری با نسخه‌های قبلی که این فیلد رو نداشتن
+      performDailyReset();
+      return;
+    }
   }catch(e){ /* not found or blocked */ }
   DB = JSON.parse(JSON.stringify(SEED));
   await saveDB();
+  performDailyReset();
 }
 async function saveDB(){
   try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(DB)); }
   catch(e){ console.error("storage save failed", e); }
+}
+
+/* چک‌لیست روزانه: اگه از آخرین بار که این چک انجام شده روز عوض شده باشه
+   (چه اپ کل شب باز بوده، چه بسته بوده)، موارد تیک‌خورده حذف می‌شن و
+   موارد تیک‌نخورده برای روز جدید باقی می‌مونن. */
+function performDailyReset(){
+  if(!DB.dailyTasks) DB.dailyTasks = [];
+  const today = todayStr();
+  if(DB.dailyResetDate !== today){
+    DB.dailyTasks = DB.dailyTasks.filter(t=>!t.done);
+    DB.dailyResetDate = today;
+    saveDB();
+  }
 }
 
 /* =========================================================
@@ -381,6 +416,12 @@ async function saveDB(){
 const AREA_NAMES = () => DB.lifeAreas.map(a=>a.name);
 
 const CONFIGS = {
+  dailyTasks: {
+    title:"کار روزانه",
+    fields:[
+      {k:"name", label:"عنوان کار", type:"text"},
+    ]
+  },
   tasks: {
     title:"تسک / پروژه",
     fields:[
@@ -628,6 +669,13 @@ function renderHome(){
 
   const areaChips = DB.lifeAreas.map(a=>`<span class="area-chip">${a.name}</span>`).join("");
 
+  const dailyPending = DB.dailyTasks.filter(t=>!t.done).slice(0,4);
+  const dailyPreviewHtml = dailyPending.length ? dailyPending.map(t=>`
+    <div class="item">
+      <div class="check" onclick="toggleDaily('${t.id}')"></div>
+      <div class="main"><div class="title">${esc(t.name)}</div></div>
+    </div>`).join("") : `<div class="empty">کار روزانه‌ای باقی نمونده 🌿</div>`;
+
   const upcoming = DB.tasks.filter(t=>t.status!=="Done").sort((a,b)=>(a.dueDate||"9999").localeCompare(b.dueDate||"9999")).slice(0,4);
   const upcomingHtml = upcoming.length ? upcoming.map(t=>`
     <div class="item">
@@ -660,6 +708,12 @@ function renderHome(){
         <div class="stat-box"><div class="n">${DB.journal.length}</div><div class="l">یادداشت ژورنال</div></div>
       </div>
     </div>
+
+    <div class="section-label">
+      <span class="bar"></span>کارهای روزانه
+      <span style="margin-right:auto; color:var(--gold); cursor:pointer; font-weight:700;" onclick="navigate({view:'daily', moreSub:null, modal:null})">مشاهده همه</span>
+    </div>
+    <div class="card">${dailyPreviewHtml}</div>
 
     <div class="section-label"><span class="bar"></span>روند عادت‌های هفته</div>
     <div class="card"><div class="week-chart">${weekBars}</div></div>
@@ -758,6 +812,93 @@ async function toggleHabit(id){
   DB.habitLog[key] = !DB.habitLog[key];
   await saveDB();
   render();
+}
+
+/* =========================================================
+   RENDER: DAILY CHECKLIST
+   موقعیت هر آیتم در آرایه = اولویتش (بالاتر = مهم‌تر).
+   با کشیدن دستگیره (⠿) می‌شه ترتیب رو عوض کرد.
+   هر شب ساعت ۰۰:۰۰ موارد تیک‌خورده حذف می‌شن، بقیه می‌مونن (performDailyReset).
+========================================================= */
+function renderDaily(){
+  const items = DB.dailyTasks;
+  const doneCount = items.filter(x=>x.done).length;
+  setHeader("کارهای روزانه", `${doneCount} از ${items.length} انجام‌شده`);
+  fab().style.display = "flex";
+  fab().onclick = ()=>openForm("dailyTasks", null);
+
+  const listHtml = items.length ? items.map(t=>`
+    <div class="item daily-item" data-id="${t.id}">
+      <div class="drag-handle">⠿</div>
+      <div class="check ${t.done?'done':''}" onclick="toggleDaily('${t.id}')"></div>
+      <div class="main" onclick="openForm('dailyTasks','${t.id}')">
+        <div class="title ${t.done?'strike':''}">${esc(t.name)}</div>
+      </div>
+      <div class="edit-btn" onclick="openForm('dailyTasks','${t.id}')">✎</div>
+    </div>`).join("") : `<div class="empty">هنوز کار روزانه‌ای اضافه نکردی 🌿</div>`;
+
+  mainEl().innerHTML = `
+    <div class="section-label"><span class="bar"></span>چک‌لیست امروز</div>
+    <div class="card" id="daily-list" style="padding:4px 8px;">${listHtml}</div>
+    <div style="font-size:11px; color:var(--muted); text-align:center; padding:10px 24px; line-height:1.9;">
+      برای تغییر اولویت، دستگیره‌ی ⠿ رو بگیر و بالا/پایین بکش — بالاترین مورد، مهم‌ترینه.
+      هر شب ساعت ۰۰:۰۰ کارهای تیک‌خورده پاک می‌شن و بقیه برای روز جدید می‌مونن.
+    </div>
+  `;
+  enableDailyDrag();
+}
+
+async function toggleDaily(id){
+  const t = DB.dailyTasks.find(x=>x.id===id);
+  if(!t) return;
+  t.done = !t.done;
+  await saveDB();
+  render();
+}
+
+function enableDailyDrag(){
+  const list = document.getElementById("daily-list");
+  if(!list) return;
+  let dragItem = null, pointerId = null;
+
+  list.querySelectorAll(".daily-item .drag-handle").forEach(handle=>{
+    handle.addEventListener("pointerdown", (e)=>{
+      dragItem = handle.closest(".daily-item");
+      pointerId = e.pointerId;
+      dragItem.setPointerCapture(pointerId);
+      dragItem.classList.add("dragging");
+      e.preventDefault();
+    });
+  });
+
+  list.addEventListener("pointermove", (e)=>{
+    if(!dragItem || e.pointerId !== pointerId) return;
+    const after = getDailyDragAfterElement(list, e.clientY);
+    if(after == null) list.appendChild(dragItem);
+    else list.insertBefore(dragItem, after);
+  });
+
+  function endDrag(e){
+    if(!dragItem || e.pointerId !== pointerId) return;
+    dragItem.classList.remove("dragging");
+    try{ dragItem.releasePointerCapture(pointerId); }catch(err){}
+    const newOrder = [...list.querySelectorAll(".daily-item")].map(el=>el.dataset.id);
+    DB.dailyTasks.sort((a,b)=> newOrder.indexOf(a.id) - newOrder.indexOf(b.id));
+    saveDB();
+    dragItem = null; pointerId = null;
+  }
+  list.addEventListener("pointerup", endDrag);
+  list.addEventListener("pointercancel", endDrag);
+}
+
+function getDailyDragAfterElement(container, y){
+  const els = [...container.querySelectorAll(".daily-item:not(.dragging)")];
+  return els.reduce((closest, child)=>{
+    const box = child.getBoundingClientRect();
+    const offset = y - box.top - box.height/2;
+    if(offset < 0 && offset > closest.offset) return {offset, element: child};
+    return closest;
+  }, {offset:-Infinity}).element;
 }
 
 /* =========================================================
@@ -894,6 +1035,7 @@ async function importData(event){
     if(!ok){ event.target.value = ""; return; }
     DB = parsed;
     if(!DB.habitLog) DB.habitLog = {};
+    if(!DB.dailyTasks) DB.dailyTasks = [];
     await saveDB();
     alert("بازیابی با موفقیت انجام شد ✅");
     navigate({ view:"home", moreSub:null, modal:null });
@@ -1100,6 +1242,7 @@ function render(){
   $("#header-date").textContent = dt.toLocaleDateString("fa-IR", {weekday:"long", day:"numeric", month:"long"});
 
   if(state.view==="home") renderHome();
+  else if(state.view==="daily") renderDaily();
   else if(state.view==="tasks") renderTasks();
   else if(state.view==="habits") renderHabits();
   else if(state.view==="journal") renderJournal();
@@ -1132,6 +1275,7 @@ function checkForNewDay(){
   const now = todayStr();
   if(now !== __lastKnownDate){
     __lastKnownDate = now;
+    performDailyReset(); // چک‌لیست روزانه: تیک‌خورده‌ها حذف، بقیه باقی می‌مونن
     render();      // بازسازی صفحه با تاریخ جدید (تیک‌های عادت روزانه پاک می‌شن)
     syncModalUI();
   }
