@@ -210,6 +210,11 @@ nav.bottom .nb .ic{font-size:18px;}
   font-family:inherit; font-size:13.5px; background:#fff; color:var(--dark);
 }
 .field textarea{resize:vertical; min-height:60px;}
+.jalali-date{display:flex; gap:6px;}
+.jalali-date select{
+  flex:1; min-width:0; padding:10px 6px; border-radius:10px; border:1px solid var(--line);
+  font-family:inherit; font-size:13px; background:#fff; color:var(--dark); text-align:center;
+}
 .modal-actions{display:flex; gap:10px; margin-top:16px;}
 
 ::-webkit-scrollbar{width:0;}
@@ -307,6 +312,64 @@ const todayStr = () => {
   return `${y}-${m}-${day}`;
 };
 const uid = () => Math.random().toString(36).slice(2,10);
+
+/* =========================================================
+   تبدیل تاریخ میلادی ↔ شمسی (جلالی)
+   داده‌ها همچنان به‌صورت میلادی ISO (YYYY-MM-DD) ذخیره می‌شن
+   (سازگار با داده‌های قدیمی و مرتب‌سازی‌های موجود)، فقط
+   نمایش و ورودی برای کاربر کاملاً شمسی‌ـه.
+   این تبدیل با تکیه بر تقویم داخلی خودِ مرورگر (Intl, calendar
+   persian) انجام می‌شه، نه یک الگوریتم دستی جدا — یعنی همیشه
+   با تقویم رسمی ایران هماهنگه (نه قمری).
+========================================================= */
+const PERSIAN_MONTHS = ["فروردین","اردیبهشت","خرداد","تیر","مرداد","شهریور","مهر","آبان","آذر","دی","بهمن","اسفند"];
+const JALALI_MONTH_LENS_FIXED = [31,31,31,31,31,31,30,30,30,30,30,29];
+
+function gregorianToJalali(gy, gm, gd){
+  const date = new Date(Date.UTC(gy, gm-1, gd, 12));
+  const parts = new Intl.DateTimeFormat('fa-IR-u-ca-persian-nu-latn', {year:'numeric', month:'numeric', day:'numeric', timeZone:'UTC'}).formatToParts(date);
+  const o = {};
+  parts.forEach(p=>{ if(p.type!=='literal') o[p.type]=parseInt(p.value,10); });
+  return [o.year, o.month, o.day];
+}
+function findFarvardinFirstGregorian(jy){
+  const approxGy = jy + 621;
+  for(let d=15; d<=25; d++){
+    const [jy2,jm2,jd2] = gregorianToJalali(approxGy, 3, d);
+    if(jy2===jy && jm2===1 && jd2===1) return {gy:approxGy, gm:3, gd:d};
+  }
+  return {gy:approxGy, gm:3, gd:21};
+}
+function jalaliToGregorian(jy, jm, jd){
+  const start = findFarvardinFirstGregorian(jy);
+  let dayOffset = 0;
+  for(let m=1; m<jm; m++) dayOffset += JALALI_MONTH_LENS_FIXED[m-1];
+  dayOffset += (jd-1);
+  const startDate = new Date(Date.UTC(start.gy, start.gm-1, start.gd, 12));
+  startDate.setUTCDate(startDate.getUTCDate()+dayOffset);
+  return [startDate.getUTCFullYear(), startDate.getUTCMonth()+1, startDate.getUTCDate()];
+}
+function jalaliMonthLength(jy, jm){
+  if(jm<=6) return 31;
+  if(jm<=11) return 30;
+  const [gy,gm,gd] = jalaliToGregorian(jy,12,30);
+  const [cy,cm,cd] = gregorianToJalali(gy,gm,gd);
+  return (cy===jy && cm===12 && cd===30) ? 30 : 29;
+}
+function isoToJalali(iso){
+  if(!iso) return null;
+  const [gy,gm,gd] = iso.split("-").map(Number);
+  if(!gy||!gm||!gd) return null;
+  return gregorianToJalali(gy,gm,gd);
+}
+function jalaliToIso(jy,jm,jd){
+  const [gy,gm,gd] = jalaliToGregorian(jy,jm,jd);
+  return `${gy}-${String(gm).padStart(2,"0")}-${String(gd).padStart(2,"0")}`;
+}
+function currentJalaliYear(){
+  const now = new Date();
+  return gregorianToJalali(now.getFullYear(), now.getMonth()+1, now.getDate())[0];
+}
 
 const SEED = {
   lifeAreas: [
@@ -1179,6 +1242,68 @@ function syncModalUI(){
   }
 }
 
+function jalaliPickerHtml(fieldKey, isoVal){
+  const jd = isoToJalali(isoVal); // [jy,jm,jd] یا null اگه خالی باشه
+  return `
+    <div class="jalali-date" data-for="${fieldKey}">
+      <select class="jd-day"><option value="">روز</option></select>
+      <select class="jd-month"><option value="">ماه</option></select>
+      <select class="jd-year"><option value="">سال</option></select>
+    </div>
+    <input type="hidden" data-k="${fieldKey}" value="${esc(isoVal)}" data-jy="${jd?jd[0]:''}" data-jm="${jd?jd[1]:''}" data-jd="${jd?jd[2]:''}">
+  `;
+}
+
+function initJalaliPickers(){
+  document.querySelectorAll(".jalali-date").forEach(wrap=>{
+    const hidden = wrap.parentElement.querySelector(`input[type="hidden"][data-k="${wrap.dataset.for}"]`);
+    const daySel = wrap.querySelector(".jd-day");
+    const monthSel = wrap.querySelector(".jd-month");
+    const yearSel = wrap.querySelector(".jd-year");
+
+    const curJY = currentJalaliYear();
+    const initJY = hidden.dataset.jy ? Number(hidden.dataset.jy) : curJY;
+    const initJM = hidden.dataset.jm ? Number(hidden.dataset.jm) : "";
+    const initJD = hidden.dataset.jd ? Number(hidden.dataset.jd) : "";
+
+    // پر کردن سال (۱۰ سال قبل تا ۱۰ سال بعد از سال جاری)
+    for(let y=curJY-10; y<=curJY+10; y++){
+      yearSel.insertAdjacentHTML("beforeend", `<option value="${y}" ${y===initJY && hidden.dataset.jy ? "selected":""}>${y}</option>`);
+    }
+    // پر کردن ماه
+    PERSIAN_MONTHS.forEach((name,i)=>{
+      const m = i+1;
+      monthSel.insertAdjacentHTML("beforeend", `<option value="${m}" ${m===initJM?"selected":""}>${name}</option>`);
+    });
+
+    function fillDays(){
+      const y = Number(yearSel.value) || curJY;
+      const m = Number(monthSel.value) || 1;
+      const len = monthSel.value ? jalaliMonthLength(y,m) : 31;
+      const prevSelected = daySel.value;
+      daySel.innerHTML = `<option value="">روز</option>`;
+      for(let d=1; d<=len; d++){
+        daySel.insertAdjacentHTML("beforeend", `<option value="${d}" ${d===initJD && !daySel.dataset.touched ? "selected":""}>${d}</option>`);
+      }
+      if(daySel.dataset.touched && prevSelected && Number(prevSelected)<=len) daySel.value = prevSelected;
+    }
+    fillDays();
+
+    function syncHidden(){
+      daySel.dataset.touched = "1";
+      const y = yearSel.value, m = monthSel.value, d = daySel.value;
+      if(y && m && d){
+        hidden.value = jalaliToIso(Number(y), Number(m), Number(d));
+      } else {
+        hidden.value = "";
+      }
+    }
+    yearSel.addEventListener("change", ()=>{ fillDays(); syncHidden(); });
+    monthSel.addEventListener("change", ()=>{ fillDays(); syncHidden(); });
+    daySel.addEventListener("change", syncHidden);
+  });
+}
+
 function buildForm(entityKey, id){
   const cfg = CONFIGS[entityKey];
   const isNew = !id;
@@ -1198,6 +1323,9 @@ function buildForm(entityKey, id){
     if(f.type==="textarea"){
       return `<div class="field"><label>${f.label}</label><textarea data-k="${f.k}">${esc(val)}</textarea></div>`;
     }
+    if(f.type==="date"){
+      return `<div class="field"><label>${f.label}</label>${jalaliPickerHtml(f.k, val)}</div>`;
+    }
     return `<div class="field"><label>${f.label}</label><input data-k="${f.k}" type="${f.type}" value="${esc(val)}"></div>`;
   }).join("");
 
@@ -1210,6 +1338,7 @@ function buildForm(entityKey, id){
       <button class="btn secondary" id="cancel-btn" type="button">انصراف</button>
     </div>
   `;
+  initJalaliPickers();
 
   $("#save-btn").onclick = async ()=>{
     const data = isNew ? {id:uid()} : item;
