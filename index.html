@@ -1459,12 +1459,15 @@ const LICENSE_CONFIG = {
   window.__masirSb = sb; // در دسترس اسکریپت اصلی اپ هم قرار می‌گیره (برای بک‌آپ ابری اطلاعات)
 
   function getDeviceId(){
-    // این مقدار از مشخصات نسبتاً پایدار خودِ دستگاه/مرورگر محاسبه می‌شه
-    // (نه یک عدد تصادفی که فقط توی localStorage ذخیره بشه). یعنی حتی اگه
-    // کاربر سابقه/کش مرورگر رو کامل پاک کنه، دفعه‌ی بعد دقیقاً همین مقدار
-    // دوباره به‌دست میاد و لایسنسش قطع یا قفل نمی‌شه.
+    // این مقدار از مشخصات پایدارِ خودِ دستگاه/مرورگر محاسبه می‌شه — نه یک
+    // عدد تصادفی که فقط توی localStorage ذخیره بشه، و نه چیزی که با
+    // آپدیت خودکار مرورگر عوض بشه (برای همین شماره‌نسخه‌ها از UA حذف
+    // می‌شن). یعنی حتی اگه کاربر سابقه/کش مرورگر رو کامل پاک کنه یا
+    // مرورگرش خودکار آپدیت بشه، دفعه‌ی بعد دقیقاً همین مقدار دوباره
+    // به‌دست میاد و لایسنسش قطع یا قفل نمی‌شه.
+    const uaStable = navigator.userAgent.replace(/[\d.]+/g, ""); // حذف شماره‌نسخه‌ها
     const raw = [
-      navigator.userAgent, navigator.platform, navigator.language,
+      uaStable, navigator.platform, navigator.language,
       screen.width+"x"+screen.height, screen.colorDepth,
       new Date().getTimezoneOffset(), navigator.hardwareConcurrency||""
     ].join("|");
@@ -1495,17 +1498,13 @@ const LICENSE_CONFIG = {
   }
 
   // بک‌آپ ابری اطلاعات اپ (تسک‌ها، عادت‌ها، ژورنال و ...):
-  // با تأخیر کوتاه (debounce) بعد از هر تغییر، یه نسخه از کل داده‌ها روی
+  // بلافاصله بعد از هر تغییر (بدون تأخیر) یه نسخه از کل داده‌ها روی
   // Supabase هم ذخیره می‌شه — اگه سابقه‌ی مرورگر پاک بشه، از همونجا برمی‌گرده.
-  let __pushTimer = null;
-  function scheduleCloudPush(data){
-    clearTimeout(__pushTimer);
-    __pushTimer = setTimeout(async ()=>{
-      try{ await sb.rpc("save_app_data", { p_device: window.__masirDeviceId, p_data: data }); }
-      catch(e){ /* آفلاین — نسخه‌ی محلی همچنان سالمه، دفعه‌ی بعد با اینترنت سینک می‌شه */ }
-    }, 1500);
+  async function pushToCloud(data){
+    try{ await sb.rpc("save_app_data", { p_device: window.__masirDeviceId, p_data: data }); }
+    catch(e){ /* آفلاین — نسخه‌ی محلی همچنان سالمه، دفعه‌ی بعد با اینترنت سینک می‌شه */ }
   }
-  window.__masirCloudPush = scheduleCloudPush;
+  window.__masirCloudPush = pushToCloud;
 
   // اگه داده‌ی محلی نبود (مثلاً سابقه پاک شده)، قبل از باز کردن اپ سعی
   // می‌کنیم آخرین نسخه‌ی ذخیره‌شده رو از سرور برگردونیم
