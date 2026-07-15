@@ -458,6 +458,8 @@ async function loadDB(){
 async function saveDB(){
   try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(DB)); }
   catch(e){ console.error("storage save failed", e); }
+  // بک‌آپ ابری: اگه سابقه/کش مرورگر بعداً پاک بشه، اطلاعات از اینجا برمی‌گرده
+  if(window.__masirCloudPush) window.__masirCloudPush(DB);
 }
 
 /* چک‌لیست روزانه: اگه از آخرین بار که این چک انجام شده روز عوض شده باشه
@@ -1454,6 +1456,7 @@ const LICENSE_CONFIG = {
 (function licenseGate(){
   const sb = window.supabase.createClient(LICENSE_CONFIG.SUPABASE_URL, LICENSE_CONFIG.SUPABASE_ANON_KEY);
   const $g = (id) => document.getElementById(id);
+  window.__masirSb = sb; // در دسترس اسکریپت اصلی اپ هم قرار می‌گیره (برای بک‌آپ ابری اطلاعات)
 
   function getDeviceId(){
     // این مقدار از مشخصات نسبتاً پایدار خودِ دستگاه/مرورگر محاسبه می‌شه
@@ -1473,6 +1476,7 @@ const LICENSE_CONFIG = {
     }
     return h1.toString(16).padStart(8,"0") + h2.toString(16).padStart(8,"0");
   }
+  window.__masirDeviceId = getDeviceId();
 
   // اگه localStorage پاک شده بود، این تابع بی‌سروصدا از سرور می‌پرسه
   // «آیا این دستگاه (بر اساس شناسه‌ی قابل‌بازتولیدش) قبلاً لایسنس فعالی
@@ -1488,6 +1492,36 @@ const LICENSE_CONFIG = {
       }
     }catch(e){ /* آفلاین یا خطای شبکه — بی‌خیال می‌شیم و می‌ریم سراغ حالت بعدی */ }
     return false;
+  }
+
+  // بک‌آپ ابری اطلاعات اپ (تسک‌ها، عادت‌ها، ژورنال و ...):
+  // با تأخیر کوتاه (debounce) بعد از هر تغییر، یه نسخه از کل داده‌ها روی
+  // Supabase هم ذخیره می‌شه — اگه سابقه‌ی مرورگر پاک بشه، از همونجا برمی‌گرده.
+  let __pushTimer = null;
+  function scheduleCloudPush(data){
+    clearTimeout(__pushTimer);
+    __pushTimer = setTimeout(async ()=>{
+      try{ await sb.rpc("save_app_data", { p_device: window.__masirDeviceId, p_data: data }); }
+      catch(e){ /* آفلاین — نسخه‌ی محلی همچنان سالمه، دفعه‌ی بعد با اینترنت سینک می‌شه */ }
+    }, 1500);
+  }
+  window.__masirCloudPush = scheduleCloudPush;
+
+  // اگه داده‌ی محلی نبود (مثلاً سابقه پاک شده)، قبل از باز کردن اپ سعی
+  // می‌کنیم آخرین نسخه‌ی ذخیره‌شده رو از سرور برگردونیم
+  async function tryRestoreAppDataFromCloud(){
+    try{
+      if(localStorage.getItem("masir-app-data")) return; // داده‌ی محلی موجوده، نیازی به سرور نیست
+      const { data } = await sb.rpc("load_app_data", { p_device: window.__masirDeviceId });
+      if(data && data.ok && data.app_data){
+        localStorage.setItem("masir-app-data", JSON.stringify(data.app_data));
+      }
+    }catch(e){ /* آفلاین — اپ با داده‌ی پیش‌فرض بالا میاد، دفعه‌ی بعد با اینترنت خودش برمی‌گرده */ }
+  }
+
+  async function enterApp(){
+    await tryRestoreAppDataFromCloud();
+    showApp();
   }
 
   function showApp(){
@@ -1539,17 +1573,17 @@ const LICENSE_CONFIG = {
     const params = new URLSearchParams(location.search);
     const token = params.get("l");
 
-    // مسیر سریع: اگه پرچم محلی هنوز سرجاشه (حالت عادی، بدون پاک شدن سابقه)
-    if(token && localStorage.getItem("masir_lic_ok_"+token) === "1"){ showApp(); return; }
+    // مسیر سریع: پرچم محلی هنوز سرجاشه (حالت عادی، بدون پاک شدن سابقه)
+    if(token && localStorage.getItem("masir_lic_ok_"+token) === "1"){ enterApp(); return; }
     if(!token){
       const savedToken = localStorage.getItem("masir_lic_ok");
-      if(savedToken && localStorage.getItem("masir_lic_ok_"+savedToken) === "1"){ showApp(); return; }
+      if(savedToken && localStorage.getItem("masir_lic_ok_"+savedToken) === "1"){ enterApp(); return; }
     }
 
     // مسیر مطمئن: پرچم محلی نبود (مثلاً سابقه پاک شده) — قبل از نشون دادن
     // هر پیغامی، از سرور می‌پرسیم این دستگاه رو می‌شناسه یا نه
     const restored = await trySilentDeviceRestore();
-    if(restored){ showApp(); return; }
+    if(restored){ enterApp(); return; }
 
     if(!token){
       showGate("دسترسی نامعتبر", "برای استفاده از مسیر، لطفاً از لینک اختصاصی که دریافت کرده‌اید استفاده کنید.", false);
@@ -1565,7 +1599,7 @@ const LICENSE_CONFIG = {
       const ok = await tryActivate(token, code);
       $g("gate-submit-btn").disabled = false;
       $g("gate-submit-btn").textContent = "ورود به مسیر";
-      if(ok) showApp();
+      if(ok) enterApp();
     };
   }
 
