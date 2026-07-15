@@ -1456,12 +1456,38 @@ const LICENSE_CONFIG = {
   const $g = (id) => document.getElementById(id);
 
   function getDeviceId(){
-    let id = localStorage.getItem("masir_device_id");
-    if(!id){
-      id = (crypto.randomUUID ? crypto.randomUUID() : (Date.now()+"-"+Math.random().toString(36).slice(2)));
-      localStorage.setItem("masir_device_id", id);
+    // این مقدار از مشخصات نسبتاً پایدار خودِ دستگاه/مرورگر محاسبه می‌شه
+    // (نه یک عدد تصادفی که فقط توی localStorage ذخیره بشه). یعنی حتی اگه
+    // کاربر سابقه/کش مرورگر رو کامل پاک کنه، دفعه‌ی بعد دقیقاً همین مقدار
+    // دوباره به‌دست میاد و لایسنسش قطع یا قفل نمی‌شه.
+    const raw = [
+      navigator.userAgent, navigator.platform, navigator.language,
+      screen.width+"x"+screen.height, screen.colorDepth,
+      new Date().getTimezoneOffset(), navigator.hardwareConcurrency||""
+    ].join("|");
+    let h1=0x811c9dc5, h2=0x811c9dc5;
+    for(let i=0;i<raw.length;i++){
+      const c = raw.charCodeAt(i);
+      h1=(h1^c)>>>0; h1=Math.imul(h1,0x01000193)>>>0;
+      h2=(h2^c)>>>0; h2=Math.imul(h2,0x85ebca6b)>>>0;
     }
-    return id;
+    return h1.toString(16).padStart(8,"0") + h2.toString(16).padStart(8,"0");
+  }
+
+  // اگه localStorage پاک شده بود، این تابع بی‌سروصدا از سرور می‌پرسه
+  // «آیا این دستگاه (بر اساس شناسه‌ی قابل‌بازتولیدش) قبلاً لایسنس فعالی
+  // داشته؟» — اگه بله، بدون نیاز به لینک یا کد، دوباره واردش می‌کنه.
+  async function trySilentDeviceRestore(){
+    try{
+      const device = getDeviceId();
+      const { data } = await sb.rpc("check_device_license", { p_device: device });
+      if(data && data.ok && data.token){
+        localStorage.setItem("masir_lic_ok_"+data.token, "1");
+        localStorage.setItem("masir_lic_ok", data.token);
+        return true;
+      }
+    }catch(e){ /* آفلاین یا خطای شبکه — بی‌خیال می‌شیم و می‌ریم سراغ حالت بعدی */ }
+    return false;
   }
 
   function showApp(){
@@ -1513,22 +1539,20 @@ const LICENSE_CONFIG = {
     const params = new URLSearchParams(location.search);
     const token = params.get("l");
 
+    // مسیر سریع: اگه پرچم محلی هنوز سرجاشه (حالت عادی، بدون پاک شدن سابقه)
+    if(token && localStorage.getItem("masir_lic_ok_"+token) === "1"){ showApp(); return; }
     if(!token){
-      // احتمالاً از آیکون هوم‌اسکرین باز شده (بدون کوئری‌استرینگ توی URL).
-      // اگه این دستگاه قبلاً یک‌بار با یک لینک معتبر فعال شده، همون پرچم
-      // عمومی رو پیدا می‌کنیم و بدون نیاز به لینک دوباره وارد اپ می‌شیم.
       const savedToken = localStorage.getItem("masir_lic_ok");
-      if(savedToken && localStorage.getItem("masir_lic_ok_"+savedToken) === "1"){
-        showApp();
-        return;
-      }
-      showGate("دسترسی نامعتبر", "برای استفاده از مسیر، لطفاً از لینک اختصاصی که دریافت کرده‌اید استفاده کنید.", false);
-      return;
+      if(savedToken && localStorage.getItem("masir_lic_ok_"+savedToken) === "1"){ showApp(); return; }
     }
 
-    // اگه قبلاً روی همین دستگاه فعال شده، مستقیم وارد اپ شو (بدون نیاز به اینترنت)
-    if(localStorage.getItem("masir_lic_ok_"+token) === "1"){
-      showApp();
+    // مسیر مطمئن: پرچم محلی نبود (مثلاً سابقه پاک شده) — قبل از نشون دادن
+    // هر پیغامی، از سرور می‌پرسیم این دستگاه رو می‌شناسه یا نه
+    const restored = await trySilentDeviceRestore();
+    if(restored){ showApp(); return; }
+
+    if(!token){
+      showGate("دسترسی نامعتبر", "برای استفاده از مسیر، لطفاً از لینک اختصاصی که دریافت کرده‌اید استفاده کنید.", false);
       return;
     }
 
